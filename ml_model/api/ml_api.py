@@ -16,9 +16,10 @@ import uvicorn
 import logging
 
 # 导入自定义模块
-from ..data.data_processor import DataProcessor
-from ..models.model_trainer import ModelTrainer
-from ..models.predictor import Predictor
+from data.data_processor import DataProcessor
+from models.model_trainer import ModelTrainer
+from models.predictor import Predictor
+from utils.helpers import serialize_numpy_pandas
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -119,7 +120,8 @@ async def upload_data(file: UploadFile = File(...)):
             system_status["data_uploaded"] = True
             system_status["current_step"] = "模型训练"
             
-            return result
+            # 序列化结果
+            return serialize_numpy_pandas(result)
         else:
             raise HTTPException(status_code=400, detail=result['message'])
             
@@ -140,7 +142,7 @@ async def get_data_info():
         
         return {
             "success": True,
-            "data_info": data_info
+            "data_info": serialize_numpy_pandas(data_info)
         }
         
     except HTTPException:
@@ -160,7 +162,7 @@ async def get_data_preview(rows: int = 20):
         
         return {
             "success": True,
-            "preview": preview
+            "preview": serialize_numpy_pandas(preview)
         }
         
     except HTTPException:
@@ -233,7 +235,8 @@ async def train_model(request: ModelTrainRequest, background_tasks: BackgroundTa
             predictor.load_model(result['model_path'])
             predictor.set_current_model(model_name)
             
-            return result
+            # 序列化结果
+            return serialize_numpy_pandas(result)
         else:
             raise HTTPException(status_code=400, detail=result['message'])
             
@@ -268,7 +271,8 @@ async def get_model_metrics(model_name: str):
         if not result['success']:
             raise HTTPException(status_code=404, detail=result['message'])
         
-        return result
+        # 序列化结果
+        return serialize_numpy_pandas(result)
         
     except HTTPException:
         raise
@@ -290,7 +294,8 @@ async def compare_models(test_size: float = 0.2):
         result = model_trainer.compare_models(X, y, test_size)
         
         if result['success']:
-            return result
+            # 序列化结果
+            return serialize_numpy_pandas(result)
         else:
             raise HTTPException(status_code=400, detail="模型比较失败")
             
@@ -315,7 +320,8 @@ async def predict(request: PredictionRequest):
         result = predictor.predict(request.data)
         
         if result['success']:
-            return result
+            # 序列化结果
+            return serialize_numpy_pandas(result)
         else:
             raise HTTPException(status_code=400, detail=result['message'])
             
@@ -340,7 +346,8 @@ async def batch_predict(data: List[Dict[str, Any]], model_name: Optional[str] = 
         result = predictor.batch_predict(data)
         
         if result['success']:
-            return result
+            # 序列化结果
+            return serialize_numpy_pandas(result)
         else:
             raise HTTPException(status_code=400, detail=result['message'])
             
@@ -396,7 +403,8 @@ async def get_model_info(model_name: Optional[str] = None):
         if not result['success']:
             raise HTTPException(status_code=404, detail=result['message'])
         
-        return result
+        # 序列化结果
+        return serialize_numpy_pandas(result)
         
     except HTTPException:
         raise
@@ -407,7 +415,7 @@ async def get_model_info(model_name: Optional[str] = None):
 def run_api(host: str = "0.0.0.0", port: int = 8000, debug: bool = False):
     """运行API服务器"""
     uvicorn.run(
-        "ml_model.api.ml_api:app",
+        "api.ml_api:app",
         host=host,
         port=port,
         reload=debug,

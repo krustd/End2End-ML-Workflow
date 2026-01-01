@@ -2,12 +2,17 @@ package data
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/net/ghttp"
 
 	v1 "template/api/data/v1"
 	"template/internal/service/http_client"
@@ -16,7 +21,7 @@ import (
 // IDataLogic 数据管理逻辑接口
 type IDataLogic interface {
 	// UploadData 上传数据
-	UploadData(ctx context.Context, req *v1.DataUploadReq) (res *v1.DataUploadRes, err error)
+	UploadData(ctx context.Context, file *ghttp.UploadFile) (res *v1.DataUploadRes, err error)
 
 	// GetDataInfo 获取数据信息
 	GetDataInfo(ctx context.Context, req *v1.DataInfoReq) (res *v1.DataInfoRes, err error)
@@ -41,30 +46,38 @@ func NewDataLogic() IDataLogic {
 }
 
 // UploadData 上传数据
-func (s *sDataLogic) UploadData(ctx context.Context, req *v1.DataUploadReq) (res *v1.DataUploadRes, err error) {
-	if req.File == nil {
+func (s *sDataLogic) UploadData(ctx context.Context, file *ghttp.UploadFile) (res *v1.DataUploadRes, err error) {
+	if file == nil {
 		return nil, gerror.NewCode(gcode.CodeInvalidParameter, "上传文件不能为空")
 	}
 
 	// 检查文件类型
-	if req.File.Header.Get("Content-Type") != "text/csv" && !isCSVFileName(req.File.Filename) {
+	if file.Header.Get("Content-Type") != "text/csv" && !isCSVFileName(file.Filename) {
 		return nil, gerror.NewCode(gcode.CodeInvalidParameter, "只支持CSV文件")
 	}
 
 	// 读取文件内容
-	file, err := req.File.Open()
+	fileObj, err := file.Open()
 	if err != nil {
 		return nil, gerror.Wrap(err, "打开上传文件失败")
 	}
-	defer file.Close()
+	defer fileObj.Close()
 
-	fileData, err := io.ReadAll(file)
+	fileData, err := io.ReadAll(fileObj)
 	if err != nil {
 		return nil, gerror.Wrap(err, "读取上传文件失败")
 	}
 
+	// 调试代码：保存文件到本地uploads目录
+	if err := saveUploadedFile(file.Filename, fileData); err != nil {
+		g.Log().Warningf(ctx, "保存上传文件失败: %v", err)
+		// 不影响主流程，继续执行
+	} else {
+		g.Log().Infof(ctx, "文件已保存到uploads目录: %s", file.Filename)
+	}
+
 	// 调用Python API上传数据
-	result, err := s.client.UploadData(ctx, req.File.Filename, fileData)
+	result, err := s.client.UploadData(ctx, file.Filename, fileData)
 	if err != nil {
 		g.Log().Errorf(ctx, "上传数据失败: %v", err)
 		return nil, gerror.Wrap(err, "上传数据失败")
@@ -296,4 +309,27 @@ func convertToStringSlice(slice []interface{}) []string {
 	}
 
 	return result
+}
+
+// saveUploadedFile 保存上传的文件到本地uploads目录
+func saveUploadedFile(filename string, fileData []byte) error {
+	// 确保uploads目录存在
+	uploadsDir := "uploads"
+	if _, err := os.Stat(uploadsDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(uploadsDir, 0755); err != nil {
+			return fmt.Errorf("创建uploads目录失败: %v", err)
+		}
+	}
+
+	// 添加时间戳前缀，避免文件名冲突
+	timestamp := time.Now().Format("20060102_150405")
+	newFilename := fmt.Sprintf("%s_%s", timestamp, filename)
+
+	// 创建目标文件
+	filePath := filepath.Join(uploadsDir, newFilename)
+	if err := os.WriteFile(filePath, fileData, 0644); err != nil {
+		return fmt.Errorf("写入文件失败: %v", err)
+	}
+
+	return nil
 }

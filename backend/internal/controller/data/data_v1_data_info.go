@@ -12,5 +12,16 @@ func (c *ControllerV1) DataInfo(ctx context.Context, req *v1.DataInfoReq) (res *
 	dataLogic := data.NewDataLogic()
 
 	// 调用逻辑层处理获取数据信息请求
-	return dataLogic.GetDataInfo(ctx, req)
+	logicRes, err := dataLogic.GetDataInfo(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// 构造BaseRes格式的响应
+	res = &v1.DataInfoRes{
+		Success:  logicRes.Success,
+		DataInfo: logicRes.DataInfo,
+	}
+
+	return res, nil
 }

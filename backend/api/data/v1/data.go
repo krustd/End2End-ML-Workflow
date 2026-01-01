@@ -1,15 +1,14 @@
 package v1
 
 import (
-	"mime/multipart"
-
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/net/ghttp"
 )
 
 // DataUploadReq 数据上传请求
 type DataUploadReq struct {
 	g.Meta `path:"/data/upload" method:"POST" tags:"数据管理" summary:"上传CSV数据文件"`
-	File   *multipart.FileHeader `json:"file" v:"required" dc:"CSV文件"`
+	File   *ghttp.UploadFile `p:"file" v:"required" dc:"CSV文件"`
 }
 
 // DataUploadRes 数据上传响应

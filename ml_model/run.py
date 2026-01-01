@@ -11,8 +11,8 @@ import logging
 # 添加当前目录到Python路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from ml_model.api import run_api
-from ml_model.config import API_CONFIG
+from api import run_api
+from config import API_CONFIG
 
 # 配置日志
 logging.basicConfig(
@@ -35,9 +35,9 @@ def main():
     logger.info(f"调试模式: {'开启' if args.debug else '关闭'}")
     
     # 创建必要的目录
-    os.makedirs("ml_model/saved_models", exist_ok=True)
-    os.makedirs("ml_model/uploads", exist_ok=True)
-    os.makedirs("ml_model/logs", exist_ok=True)
+    os.makedirs("saved_models", exist_ok=True)
+    os.makedirs("uploads", exist_ok=True)
+    os.makedirs("logs", exist_ok=True)
     
     try:
         run_api(host=args.host, port=args.port, debug=args.debug)

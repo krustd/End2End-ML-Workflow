@@ -231,3 +231,53 @@ def truncate_string(text: str, max_length: int = 50) -> str:
     if len(text) <= max_length:
         return text
     return text[:max_length-3] + "..."
+
+
+def serialize_numpy_pandas(obj: Any) -> Any:
+    """
+    递归地将 numpy 和 pandas 数据类型转换为可序列化的 Python 原生类型
+    
+    Args:
+        obj: 需要序列化的对象
+        
+    Returns:
+        可序列化的对象
+    """
+    if obj is None:
+        return None
+    
+    # 处理 numpy 标量
+    if isinstance(obj, (np.integer, np.int64, np.int32)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float64, np.float32)):
+        return float(obj)
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, pd.Series):
+        return obj.to_dict()
+    elif isinstance(obj, pd.DataFrame):
+        return obj.to_dict()
+    elif isinstance(obj, pd.Timestamp):
+        return obj.isoformat()
+    elif isinstance(obj, pd.Timedelta):
+        return str(obj)
+    # 处理 numpy.dtypes.Float64DType 和 numpy.dtypes.Int64DType 等类型
+    elif str(type(obj)).startswith("<class 'numpy.dtypes"):
+        return str(obj)
+    elif hasattr(obj, 'dtype'):
+        # 处理 numpy.dtypes.Float64DType 等类型
+        dtype_str = str(obj.dtype)
+        if dtype_str.startswith('float'):
+            return float(obj) if hasattr(obj, 'item') else str(obj)
+        elif dtype_str.startswith('int'):
+            return int(obj) if hasattr(obj, 'item') else str(obj)
+        else:
+            return str(obj)
+    elif isinstance(obj, dict):
+        return {key: serialize_numpy_pandas(value) for key, value in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [serialize_numpy_pandas(item) for item in obj]
+    else:
+        return obj
