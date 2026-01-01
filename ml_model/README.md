@@ -9,14 +9,18 @@
 - **预测服务**: 支持单条和批量预测
 - **结果导出**: 支持CSV、Excel和JSON格式的预测结果导出
 - **RESTful API**: 提供完整的API接口供后端调用
+- **模型比较**: 支持多种模型的性能比较
+- **特征分析**: 支持特征重要性计算和异常值检测
+- **数据概要**: 自动生成数据概要报告
 
 ## 项目结构
 
 ```
 ml_model/
 ├── __init__.py              # 主模块初始化
+├── main.py                  # 主程序入口
 ├── run.py                   # 启动脚本
-├── requirements.txt         # 依赖包列表
+├── pyproject.toml          # 项目依赖配置
 ├── README.md               # 项目说明
 ├── data/                   # 数据处理模块
 │   ├── __init__.py
@@ -42,12 +46,14 @@ ml_model/
 
 使用uv（推荐）：
 ```bash
-uv add -r ml_model/requirements.txt
+cd ml_model
+uv sync
 ```
 
 或使用pip：
 ```bash
-pip install -r ml_model/requirements.txt
+cd ml_model
+pip install -r requirements.txt  # 如果存在
 ```
 
 ### 2. 运行API服务
@@ -72,6 +78,7 @@ python ml_model/run.py --debug
 ### 系统状态
 
 - `GET /system/status` - 获取系统状态
+- `GET /` - 获取API基本信息
 
 ### 数据管理
 
@@ -120,7 +127,8 @@ response = requests.post(
     json={
         'model_type': 'linear_regression',
         'target_column': 'price',
-        'test_size': 0.2
+        'test_size': 0.2,
+        'tune_hyperparameters': True
     }
 )
 print(response.json())
@@ -153,6 +161,17 @@ response = requests.post(
 print(response.json())
 ```
 
+### 4. 模型比较
+
+```python
+# 比较所有模型性能
+response = requests.post(
+    'http://localhost:8000/model/compare',
+    params={'test_size': 0.2}
+)
+print(response.json())
+```
+
 ## 支持的模型
 
 - 线性回归 (linear_regression)
@@ -175,6 +194,55 @@ print(response.json())
 - `PREDICTION_CONFIG`: 预测服务相关配置
 - `SYSTEM_CONFIG`: 系统相关配置
 - `LOGGING_CONFIG`: 日志相关配置
+- `DATABASE_CONFIG`: 数据库相关配置
+
+## 数据处理功能
+
+### 数据预处理
+
+- 缺失值处理：支持删除、均值填充、中位数填充、众数填充
+- 分类变量处理：自动进行独热编码
+- 数据验证：自动检测数据类型、缺失值和异常值
+
+### 数据分析
+
+- 数据概要生成：自动计算数值列和分类列的统计摘要
+- 异常值检测：支持IQR和Z-score方法
+- 特征重要性计算：基于模型的特征重要性分析
+
+## 模型训练与评估
+
+### 训练参数
+
+- `model_type`: 模型类型
+- `target_column`: 目标列名
+- `test_size`: 测试集比例（默认0.2）
+- `tune_hyperparameters`: 是否进行超参数调优（默认False）
+
+### 评估指标
+
+- 均方误差 (MSE)
+- 均方根误差 (RMSE)
+- 平均绝对误差 (MAE)
+- 决定系数 (R²)
+- 交叉验证分数
+
+## 预测功能
+
+### 单条预测
+
+支持单条数据的预测，输入格式为JSON对象。
+
+### 批量预测
+
+支持批量数据的预测，输入格式为JSON数组，可自定义批处理大小。
+
+### 结果导出
+
+支持将预测结果导出为以下格式：
+- CSV
+- Excel
+- JSON
 
 ## 注意事项
 
@@ -183,6 +251,12 @@ print(response.json())
 3. 模型训练可能需要一些时间，请耐心等待
 4. 预测时输入的特征必须与训练时的特征一致
 5. 预测结果仅供参考，不构成决策建议
+6. 大数据集处理可能需要较长时间，建议适当调整批处理大小
+
+## 系统要求
+
+- Python 3.8+
+- 推荐使用虚拟环境管理依赖
 
 ## 许可证
 
