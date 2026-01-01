@@ -1,0 +1,23 @@
+"""
+配置模块
+"""
+
+from .settings import (
+    MODEL_CONFIG,
+    DATA_CONFIG,
+    API_CONFIG,
+    PREDICTION_CONFIG,
+    SYSTEM_CONFIG,
+    LOGGING_CONFIG,
+    DATABASE_CONFIG
+)
+
+__all__ = [
+    'MODEL_CONFIG',
+    'DATA_CONFIG',
+    'API_CONFIG',
+    'PREDICTION_CONFIG',
+    'SYSTEM_CONFIG',
+    'LOGGING_CONFIG',
+    'DATABASE_CONFIG'
+]
