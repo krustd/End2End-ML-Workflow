@@ -1,0 +1,23 @@
+# 服务器配置
+server:
+  address:     ":8080"  # Go后端服务端口，与Python API区分
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+  logPath: "log/http"
+  logLevel: "all"
+  logStdout: true
+  errorStack:  true
+
+# 日志配置
+logger:
+  path:    "log/app"   # 日志文件存放目录
+  level:   "all"       # 日志级别
+  stdout:  true        # 是否同时输出到控制台 (生产环境通常改为 false)
+  ctxKeys: ["Trace-Id"]
+
+# Python ML API 配置
+python_api:
+  host: "localhost"
+  port: 8000  # Python ML API服务端口
+  timeout: 30   # 超时时间（秒）
+  debug: false   # 是否启用调试模式
