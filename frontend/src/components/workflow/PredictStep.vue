@@ -45,7 +45,8 @@ onMounted(async () => {
   // 初始化预测表单
   if (allColumnOptions.value) {
     allColumnOptions.value.forEach(col => {
-      predictForm.value.data[col.value] = ''
+      // 目标列不需要输入值
+      predictForm.value.data[col.value] = col.value === dataStore.targetColumn ? null : ''
     })
   }
 })
@@ -81,7 +82,8 @@ const addBatchDataRow = () => {
   const newRow: Record<string, any> = {}
   if (allColumnOptions.value) {
     allColumnOptions.value.forEach(col => {
-      newRow[col.value] = ''
+      // 目标列不需要输入值
+      newRow[col.value] = col.value === dataStore.targetColumn ? null : ''
     })
   }
   batchData.value.push(newRow)
@@ -98,7 +100,8 @@ const clearBatchData = () => {
 const resetPredictForm = () => {
   if (allColumnOptions.value) {
     allColumnOptions.value.forEach(col => {
-      predictForm.value.data[col.value] = ''
+      // 目标列不需要输入值
+      predictForm.value.data[col.value] = col.value === dataStore.targetColumn ? null : ''
     })
   }
 }
@@ -148,7 +151,11 @@ const handleModelChange = (value: string) => {
                     :placeholder="`请输入${column.label}`"
                     type="number"
                     step="any"
+                    :disabled="column.value === dataStore.targetColumn"
                   />
+                  <div v-if="column.value === dataStore.targetColumn" style="color: #909399; font-size: 12px; margin-top: 5px;">
+                    这是目标列，将在预测中输出，无需输入
+                  </div>
                 </ElFormItem>
               </ElForm>
             </ElCol>
@@ -228,7 +235,11 @@ const handleModelChange = (value: string) => {
                   type="number"
                   step="any"
                   placeholder="输入值"
+                  :disabled="column.value === dataStore.targetColumn"
                 />
+                <div v-if="column.value === dataStore.targetColumn" style="color: #909399; font-size: 10px;">
+                  目标列
+                </div>
               </template>
             </ElTableColumn>
             <ElTableColumn label="操作" width="80">

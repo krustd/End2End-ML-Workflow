@@ -27,6 +27,12 @@ class Predictor:
         self.model_info = {}
         self.available_models = {}
         
+        # 确保模型目录存在
+        try:
+            os.makedirs(self.models_dir, exist_ok=True)
+        except Exception as e:
+            print(f"创建模型目录失败: {str(e)}")
+        
         # 加载可用的模型
         self._load_available_models()
         
@@ -143,7 +149,26 @@ class Predictor:
             df = pd.DataFrame([data])
             
             # 确保特征顺序与训练时一致
-            if 'feature_columns' in self.model_info:
+            if 'feature_names' in self.model_info:
+                feature_names = self.model_info['feature_names']
+                
+                # 检查是否所有特征都存在
+                missing_features = set(feature_names) - set(df.columns)
+                if missing_features:
+                    return {
+                        'success': False,
+                        'message': f'缺少特征: {list(missing_features)}'
+                    }
+                
+                # 过滤掉目标变量（如果存在）
+                target_name = self.model_info.get('target_name')
+                if target_name and target_name in df.columns:
+                    df = df.drop(columns=[target_name])
+                
+                # 重新排序列
+                df = df[feature_names]
+            elif 'feature_columns' in self.model_info:
+                # 兼容旧版本
                 feature_columns = self.model_info['feature_columns']
                 
                 # 检查是否所有特征都存在
@@ -153,6 +178,11 @@ class Predictor:
                         'success': False,
                         'message': f'缺少特征: {list(missing_features)}'
                     }
+                
+                # 过滤掉目标变量（如果存在）
+                target_name = self.model_info.get('target_name')
+                if target_name and target_name in df.columns:
+                    df = df.drop(columns=[target_name])
                 
                 # 重新排序列
                 df = df[feature_columns]
@@ -202,7 +232,26 @@ class Predictor:
             df = pd.DataFrame(data)
             
             # 确保特征顺序与训练时一致
-            if 'feature_columns' in self.model_info:
+            if 'feature_names' in self.model_info:
+                feature_names = self.model_info['feature_names']
+                
+                # 检查是否所有特征都存在
+                missing_features = set(feature_names) - set(df.columns)
+                if missing_features:
+                    return {
+                        'success': False,
+                        'message': f'缺少特征: {list(missing_features)}'
+                    }
+                
+                # 过滤掉目标变量（如果存在）
+                target_name = self.model_info.get('target_name')
+                if target_name and target_name in df.columns:
+                    df = df.drop(columns=[target_name])
+                
+                # 重新排序列
+                df = df[feature_names]
+            elif 'feature_columns' in self.model_info:
+                # 兼容旧版本
                 feature_columns = self.model_info['feature_columns']
                 
                 # 检查是否所有特征都存在
@@ -212,6 +261,11 @@ class Predictor:
                         'success': False,
                         'message': f'缺少特征: {list(missing_features)}'
                     }
+                
+                # 过滤掉目标变量（如果存在）
+                target_name = self.model_info.get('target_name')
+                if target_name and target_name in df.columns:
+                    df = df.drop(columns=[target_name])
                 
                 # 重新排序列
                 df = df[feature_columns]

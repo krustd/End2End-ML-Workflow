@@ -37,7 +37,12 @@ class ModelTrainer:
         
         # 确保模型保存目录存在
         self.model_dir = "saved_models"
-        os.makedirs(self.model_dir, exist_ok=True)
+        try:
+            os.makedirs(self.model_dir, exist_ok=True)
+            logger.info(f"模型保存目录已创建或已存在: {self.model_dir}")
+        except Exception as e:
+            logger.error(f"创建模型保存目录失败: {str(e)}")
+            raise
     
     def _register_models(self):
         """注册可用的模型"""

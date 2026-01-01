@@ -21,6 +21,7 @@ export const useDataStore = defineStore('data', () => {
     const dataPreview = ref<any[]>([])
     const loading = ref(false)
     const error = ref<string | null>(null)
+    const targetColumn = ref<string>('')
 
     // 计算属性
     const hasData = computed(() => {
@@ -143,6 +144,15 @@ export const useDataStore = defineStore('data', () => {
         dataInfo.value = null
         dataPreview.value = []
         error.value = null
+        targetColumn.value = ''
+    }
+
+    function setTargetColumn(column: string) {
+        targetColumn.value = column
+        // 同时更新dataInfo中的target_column
+        if (dataInfo.value) {
+            dataInfo.value.target_column = column
+        }
     }
 
     return {
@@ -150,6 +160,7 @@ export const useDataStore = defineStore('data', () => {
         dataPreview,
         loading,
         error,
+        targetColumn,
         hasData,
         numericColumnOptions,
         allColumnOptions,
@@ -157,6 +168,7 @@ export const useDataStore = defineStore('data', () => {
         fetchDataInfo,
         fetchDataPreview,
         processData,
-        clearData
+        clearData,
+        setTargetColumn
     }
 })

@@ -12,9 +12,14 @@ const systemStore = useSystemStore()
 const settingsStore = useSettingsStore()
 
 const selectedModelType = ref(settingsStore.defaultModel)
-const selectedTargetColumn = ref('')
 const testSize = ref(0.2)
 const tuneHyperparameters = ref(false)
+
+// 使用数据存储中的目标列
+const selectedTargetColumn = computed({
+  get: () => dataStore.targetColumn,
+  set: (value) => dataStore.setTargetColumn(value)
+})
 
 const hasData = computed(() => dataStore.hasData)
 const hasTrainedModel = computed(() => modelStore.hasTrainedModel)
@@ -31,9 +36,9 @@ onMounted(async () => {
   // 使用设置中的默认模型
   selectedModelType.value = settingsStore.defaultModel
   
-  // 如果有数据，设置默认目标列
-  if (hasData.value && numericColumnOptions.value && numericColumnOptions.value.length > 0) {
-    selectedTargetColumn.value = numericColumnOptions.value[0]?.value || ''
+  // 如果有数据但没有选择目标列，设置默认目标列
+  if (hasData.value && numericColumnOptions.value && numericColumnOptions.value.length > 0 && !dataStore.targetColumn) {
+    dataStore.setTargetColumn(numericColumnOptions.value[0]?.value || '')
   }
 })
 
@@ -41,7 +46,7 @@ const handleTrainModel = async () => {
   try {
     await modelStore.trainModel({
       model_type: selectedModelType.value,
-      target_column: selectedTargetColumn.value,
+      target_column: dataStore.targetColumn,
       test_size: testSize.value,
       tune_hyperparameters: tuneHyperparameters.value
     })

@@ -209,6 +209,14 @@ async def train_model(request: ModelTrainRequest, background_tasks: BackgroundTa
         if request.model_type not in model_trainer.get_available_models():
             raise HTTPException(status_code=400, detail=f"不支持的模型类型: {request.model_type}")
         
+        # 确保模型保存目录存在
+        try:
+            os.makedirs(model_trainer.model_dir, exist_ok=True)
+            logger.info(f"模型保存目录已确认存在: {model_trainer.model_dir}")
+        except Exception as e:
+            logger.error(f"创建模型保存目录失败: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"创建模型保存目录失败: {str(e)}")
+        
         # 预处理数据
         X, y = data_processor.preprocess_data(
             handle_missing='drop',

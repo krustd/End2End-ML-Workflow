@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElCard, ElRow, ElCol, ElUpload, ElButton, ElTable, ElTableColumn, ElTag, ElAlert, ElDescriptions, ElDescriptionsItem, ElSelect, ElOption, ElMessage } from 'element-plus'
 import { UploadFilled, InfoFilled } from '@element-plus/icons-vue'
 import { useDataStore } from '@/stores/data'
@@ -25,6 +25,13 @@ const handleMissingOptions = [
 const selectedTargetColumn = ref('')
 const selectedHandleMissing = ref('drop')
 
+// 监听目标列变化，同步到数据存储
+watch(selectedTargetColumn, (newValue) => {
+  if (newValue) {
+    dataStore.setTargetColumn(newValue)
+  }
+})
+
 const hasData = computed(() => dataStore.hasData)
 const dataInfo = computed(() => dataStore.dataInfo)
 const dataPreview = computed(() => dataStore.dataPreview)
@@ -38,6 +45,11 @@ onMounted(() => {
   if (hasData.value) {
     dataStore.fetchDataInfo()
     dataStore.fetchDataPreview(previewRows.value)
+    
+    // 如果数据存储中已有目标列，使用它
+    if (dataStore.targetColumn) {
+      selectedTargetColumn.value = dataStore.targetColumn
+    }
   }
 })
 
@@ -130,8 +142,11 @@ const handleProcessData = async () => {
       target_column: selectedTargetColumn.value || undefined
     })
     
-    // 更新数据信息
+    // 更新数据信息和目标列
     await dataStore.fetchDataInfo()
+    if (selectedTargetColumn.value) {
+      dataStore.setTargetColumn(selectedTargetColumn.value)
+    }
   } catch (error) {
     console.error('数据处理失败:', error)
   }
