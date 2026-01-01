@@ -15,14 +15,16 @@ type ModelTrainReq struct {
 
 // ModelTrainRes 模型训练响应
 type ModelTrainRes struct {
-	Success      bool               `json:"success"`
-	Message      string             `json:"message"`
-	ModelName    string             `json:"model_name"`
-	ModelType    string             `json:"model_type"`
-	TrainMetrics map[string]float64 `json:"train_metrics"`
-	TestMetrics  map[string]float64 `json:"test_metrics"`
-	CvScores     map[string]float64 `json:"cv_scores"`
-	ModelPath    string             `json:"model_path"`
+	Success       bool               `json:"success"`
+	Message       string             `json:"message"`
+	ModelName     string             `json:"model_name"`
+	ModelType     string             `json:"model_type"`
+	TrainMetrics  map[string]float64 `json:"train_metrics"`
+	TestMetrics   map[string]float64 `json:"test_metrics"`
+	CvScores      map[string]float64 `json:"cv_scores"`
+	ModelPath     string             `json:"model_path"`
+	ModelData     string             `json:"model_data"`      // 添加模型数据字段，用于存储base64编码的模型
+	ModelInfoData string             `json:"model_info_data"` // 添加模型信息数据字段，用于存储base64编码的模型信息
 }
 
 // AvailableModelsReq 获取可用模型请求

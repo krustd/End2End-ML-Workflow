@@ -4,6 +4,7 @@ import { ElTabs, ElTabPane, ElCard, ElSteps, ElStep, ElAlert } from 'element-plu
 import DataStep from '@/components/workflow/DataStep.vue'
 import ModelStep from '@/components/workflow/ModelStep.vue'
 import PredictStep from '@/components/workflow/PredictStep.vue'
+import ModelManager from '@/components/workflow/ModelManager.vue'
 import { useSystemStore } from '@/stores/system'
 
 const systemStore = useSystemStore()
@@ -49,6 +50,9 @@ onMounted(() => {
         </ElTabPane>
         <ElTabPane label="Step3 预测" name="predict" :disabled="!systemStore.canProceedToPrediction">
           <PredictStep />
+        </ElTabPane>
+        <ElTabPane label="模型管理" name="model-manager">
+          <ModelManager />
         </ElTabPane>
       </ElTabs>
     </ElCard>

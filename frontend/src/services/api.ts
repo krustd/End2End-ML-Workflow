@@ -133,19 +133,47 @@ export const predictApi = {
     predict(params: {
         data: Record<string, any>
         model_name?: string
+        model_data?: string // 新增：模型数据
+        model_info_data?: string // 新增：模型信息数据
     }) {
         return api.post('/predict', params)
     },
 
     // 批量预测
-    batchPredict(data: Record<string, any>[], modelName?: string) {
-        return api.post('/predict/batch', data, { params: { model_name: modelName } })
+    batchPredict(data: Record<string, any>[], modelName?: string, modelData?: string, modelInfoData?: string) {
+        const params: any = { model_name: modelName }
+        const requestData: any = { data }
+
+        // 如果提供了模型数据，添加到请求中
+        if (modelData) {
+            requestData.model_data = modelData
+        }
+
+        // 如果提供了模型信息数据，添加到请求中
+        if (modelInfoData) {
+            requestData.model_info_data = modelInfoData
+        }
+
+        return api.post('/predict/batch', requestData, { params })
     },
 
     // 导出预测结果
-    exportPredictions(data: Record<string, any>[], format = 'csv', modelName?: string) {
-        return api.post('/predict/export', data, {
-            params: { format, model_name: modelName },
+    exportPredictions(data: Record<string, any>[], format = 'csv', modelName?: string, modelData?: string, modelInfoData?: string) {
+        const params: any = { format, model_name: modelName }
+        const requestData: any = { data }
+
+        // 如果提供了模型数据，添加到请求中
+        if (modelData) {
+            requestData.model_data = modelData
+        }
+
+        // 如果提供了模型信息数据，添加到请求中
+        if (modelInfoData) {
+            requestData.model_info_data = modelInfoData
+        }
+
+        return api.post('/predict/export', requestData, {
+            params,
             responseType: 'blob'
         })
     }

@@ -2,23 +2,9 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { predictApi } from '@/services/api'
 import { ElMessage } from 'element-plus'
-
-export interface PredictionResult {
-    success: boolean
-    prediction: number
-    model_name: string
-    timestamp: string
-    message?: string
-}
-
-export interface BatchPredictionResult {
-    success: boolean
-    predictions: number[]
-    model_name: string
-    total_samples: number
-    timestamp: string
-    message?: string
-}
+import LocalPredictor from '@/utils/localPredictor'
+import type { PredictionResult, BatchPredictionResult } from '@/utils/localPredictor'
+import ModelStorage from '@/utils/modelStorage'
 
 export const usePredictStore = defineStore('predict', () => {
     // 状态
@@ -36,7 +22,24 @@ export const usePredictStore = defineStore('predict', () => {
         error.value = null
 
         try {
-            const response = await predictApi.predict(params) as any
+            // 获取本地存储的模型数据
+            let modelData = null
+            let modelInfoData = null
+            if (params.model_name) {
+                const model = ModelStorage.getModel(params.model_name)
+                if (model) {
+                    modelData = model.model_data
+                    modelInfoData = model.model_info_data
+                }
+            }
+
+            // 发送预测请求，包含模型数据和模型信息数据
+            const response = await predictApi.predict({
+                ...params,
+                model_data: modelData || undefined,
+                model_info_data: modelInfoData || undefined
+            }) as any
+
             if (response.success) {
                 predictionResult.value = response
                 ElMessage.success('预测完成')
@@ -58,7 +61,20 @@ export const usePredictStore = defineStore('predict', () => {
         error.value = null
 
         try {
-            const response = await predictApi.batchPredict(data, modelName) as any
+            // 获取本地存储的模型数据
+            let modelData = null
+            let modelInfoData = null
+            if (modelName) {
+                const model = ModelStorage.getModel(modelName)
+                if (model) {
+                    modelData = model.model_data
+                    modelInfoData = model.model_info_data
+                }
+            }
+
+            // 发送批量预测请求，包含模型数据和模型信息数据
+            const response = await predictApi.batchPredict(data, modelName, modelData || undefined, modelInfoData || undefined) as any
+
             if (response.success) {
                 batchPredictionResult.value = response
                 ElMessage.success('批量预测完成')
@@ -84,7 +100,18 @@ export const usePredictStore = defineStore('predict', () => {
         error.value = null
 
         try {
-            const response = await predictApi.exportPredictions(data, format, modelName) as any
+            // 获取本地存储的模型数据
+            let modelData = null
+            let modelInfoData = null
+            if (modelName) {
+                const model = ModelStorage.getModel(modelName)
+                if (model) {
+                    modelData = model.model_data
+                    modelInfoData = model.model_info_data
+                }
+            }
+
+            const response = await predictApi.exportPredictions(data, format, modelName, modelData || undefined, modelInfoData || undefined) as any
 
             // 创建下载链接
             const blob = new Blob([response])

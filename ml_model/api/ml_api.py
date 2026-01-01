@@ -64,6 +64,8 @@ class PredictionRequest(BaseModel):
     """预测请求模型"""
     data: Dict[str, Any]
     model_name: Optional[str] = None
+    model_data: Optional[str] = None  # 新增：模型数据(base64编码)
+    model_info_data: Optional[str] = None  # 新增：模型信息数据(base64编码)
 
 class ModelTrainRequest(BaseModel):
     """模型训练请求模型"""
@@ -71,11 +73,27 @@ class ModelTrainRequest(BaseModel):
     target_column: Optional[str] = None
     test_size: float = 0.2
     tune_hyperparameters: bool = False
+    return_model: bool = True  # 新增：是否返回模型数据
 
 class DataProcessRequest(BaseModel):
     """数据处理请求模型"""
     handle_missing: str = "drop"
     target_column: Optional[str] = None
+
+class BatchPredictionRequest(BaseModel):
+    """批量预测请求模型"""
+    data: List[Dict[str, Any]]
+    model_name: Optional[str] = None
+    model_data: Optional[str] = None  # 新增：模型数据(base64编码)
+    model_info_data: Optional[str] = None  # 新增：模型信息数据(base64编码)
+
+class ExportPredictionsRequest(BaseModel):
+    """导出预测结果请求模型"""
+    data: List[Dict[str, Any]]
+    format: str = "csv"
+    model_name: Optional[str] = None
+    model_data: Optional[str] = None  # 新增：模型数据(base64编码)
+    model_info_data: Optional[str] = None  # 新增：模型信息数据(base64编码)
 
 # API路由
 @app.get("/")
@@ -201,6 +219,12 @@ async def process_data(request: DataProcessRequest):
 @app.post("/model/train")
 async def train_model(request: ModelTrainRequest, background_tasks: BackgroundTasks):
     """训练模型"""
+    # 导入必要的模块
+    import tempfile
+    import os
+    import pickle
+    import base64
+    
     try:
         if not system_status["data_uploaded"]:
             raise HTTPException(status_code=400, detail="没有上传的数据")
@@ -223,13 +247,14 @@ async def train_model(request: ModelTrainRequest, background_tasks: BackgroundTa
             target_column=request.target_column
         )
         
-        # 训练模型
+        # 训练模型，并返回模型数据
         result = model_trainer.train_model(
             X=X,
             y=y,
             model_type=request.model_type,
             test_size=request.test_size,
-            tune_hyperparameters=request.tune_hyperparameters
+            tune_hyperparameters=request.tune_hyperparameters,
+            return_model=True  # 总是返回模型数据，不在服务器存储
         )
         
         if result['success']:
@@ -240,8 +265,28 @@ async def train_model(request: ModelTrainRequest, background_tasks: BackgroundTa
             
             # 加载模型到预测器
             model_name = result['model_name']
-            predictor.load_model(result['model_path'])
-            predictor.set_current_model(model_name)
+            
+            # 如果返回了模型数据，使用临时模型加载方式
+            if 'model_data' in result:
+                # 创建临时文件
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as temp_file:
+                    # 解码base64并写入临时文件
+                    model_bytes = base64.b64decode(result['model_data'])
+                    temp_file.write(model_bytes)
+                    temp_file_path = temp_file.name
+                
+                try:
+                    # 加载临时模型
+                    predictor.load_model(temp_file_path)
+                    predictor.set_current_model(model_name)
+                finally:
+                    # 清理临时文件
+                    if os.path.exists(temp_file_path):
+                        os.unlink(temp_file_path)
+            else:
+                # 使用模型路径加载（向后兼容）
+                predictor.load_model(result['model_path'])
+                predictor.set_current_model(model_name)
             
             # 序列化结果
             return serialize_numpy_pandas(result)
@@ -317,21 +362,81 @@ async def compare_models(test_size: float = 0.2):
 async def predict(request: PredictionRequest):
     """使用模型进行预测"""
     try:
-        if not system_status["model_trained"]:
-            raise HTTPException(status_code=400, detail="没有训练的模型")
-        
-        # 如果指定了模型名称，设置当前模型
-        if request.model_name and request.model_name in predictor.get_available_models():
-            predictor.set_current_model(request.model_name)
-        
-        # 进行预测
-        result = predictor.predict(request.data)
-        
-        if result['success']:
-            # 序列化结果
-            return serialize_numpy_pandas(result)
+        # 如果提供了模型数据，使用临时模型
+        if request.model_data:
+            import tempfile
+            import os
+            import pickle
+            import base64
+            
+            # 创建临时文件
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as temp_file:
+                # 解码base64并写入临时文件
+                model_bytes = base64.b64decode(request.model_data)
+                temp_file.write(model_bytes)
+                temp_file_path = temp_file.name
+            
+            try:
+                # 加载临时模型
+                with open(temp_file_path, 'rb') as f:
+                    model = pickle.load(f)
+                
+                # 创建临时预测器
+                temp_predictor = Predictor()
+                temp_predictor.current_model = model
+                temp_predictor.current_model_name = request.model_name or "temp_model"
+                
+                # 如果提供了模型信息数据，使用它
+                if request.model_info_data:
+                    try:
+                        model_info_bytes = base64.b64decode(request.model_info_data)
+                        model_info = pickle.loads(model_info_bytes)
+                        temp_predictor.model_info = model_info
+                    except Exception as e:
+                        logger.error(f"加载模型信息失败: {str(e)}")
+                        # 如果加载失败，尝试从模型训练器获取模型信息
+                        if request.model_name:
+                            for model_name, model_info in model_trainer.model_metrics.items():
+                                if request.model_name in model_name or model_name in request.model_name:
+                                    temp_predictor.model_info = model_info
+                                    break
+                else:
+                    # 尝试从模型训练器获取模型信息
+                    if request.model_name:
+                        for model_name, model_info in model_trainer.model_metrics.items():
+                            if request.model_name in model_name or model_name in request.model_name:
+                                temp_predictor.model_info = model_info
+                                break
+                
+                # 进行预测
+                result = temp_predictor.predict(request.data)
+                
+                if result['success']:
+                    # 序列化结果
+                    return serialize_numpy_pandas(result)
+                else:
+                    raise HTTPException(status_code=400, detail=result['message'])
+            finally:
+                # 清理临时文件
+                if os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
         else:
-            raise HTTPException(status_code=400, detail=result['message'])
+            # 使用系统中的模型
+            if not system_status["model_trained"]:
+                raise HTTPException(status_code=400, detail="没有训练的模型")
+            
+            # 如果指定了模型名称，设置当前模型
+            if request.model_name and request.model_name in predictor.get_available_models():
+                predictor.set_current_model(request.model_name)
+            
+            # 进行预测
+            result = predictor.predict(request.data)
+            
+            if result['success']:
+                # 序列化结果
+                return serialize_numpy_pandas(result)
+            else:
+                raise HTTPException(status_code=400, detail=result['message'])
             
     except HTTPException:
         raise
@@ -340,24 +445,84 @@ async def predict(request: PredictionRequest):
         raise HTTPException(status_code=500, detail=f"预测失败: {str(e)}")
 
 @app.post("/predict/batch")
-async def batch_predict(data: List[Dict[str, Any]], model_name: Optional[str] = None):
+async def batch_predict(request: BatchPredictionRequest):
     """批量预测"""
     try:
-        if not system_status["model_trained"]:
-            raise HTTPException(status_code=400, detail="没有训练的模型")
-        
-        # 如果指定了模型名称，设置当前模型
-        if model_name and model_name in predictor.get_available_models():
-            predictor.set_current_model(model_name)
-        
-        # 进行批量预测
-        result = predictor.batch_predict(data)
-        
-        if result['success']:
-            # 序列化结果
-            return serialize_numpy_pandas(result)
+        # 如果提供了模型数据，使用临时模型
+        if request.model_data:
+            import tempfile
+            import os
+            import pickle
+            import base64
+            
+            # 创建临时文件
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as temp_file:
+                # 解码base64并写入临时文件
+                model_bytes = base64.b64decode(request.model_data)
+                temp_file.write(model_bytes)
+                temp_file_path = temp_file.name
+            
+            try:
+                # 加载临时模型
+                with open(temp_file_path, 'rb') as f:
+                    model = pickle.load(f)
+                
+                # 创建临时预测器
+                temp_predictor = Predictor()
+                temp_predictor.current_model = model
+                temp_predictor.current_model_name = request.model_name or "temp_model"
+                
+                # 如果提供了模型信息数据，使用它
+                if request.model_info_data:
+                    try:
+                        model_info_bytes = base64.b64decode(request.model_info_data)
+                        model_info = pickle.loads(model_info_bytes)
+                        temp_predictor.model_info = model_info
+                    except Exception as e:
+                        logger.error(f"加载模型信息失败: {str(e)}")
+                        # 如果加载失败，尝试从模型训练器获取模型信息
+                        if request.model_name:
+                            for model_name, model_info in model_trainer.model_metrics.items():
+                                if request.model_name in model_name or model_name in request.model_name:
+                                    temp_predictor.model_info = model_info
+                                    break
+                else:
+                    # 尝试从模型训练器获取模型信息
+                    if request.model_name:
+                        for model_name, model_info in model_trainer.model_metrics.items():
+                            if request.model_name in model_name or model_name in request.model_name:
+                                temp_predictor.model_info = model_info
+                                break
+                
+                # 进行批量预测
+                result = temp_predictor.batch_predict(request.data)
+                
+                if result['success']:
+                    # 序列化结果
+                    return serialize_numpy_pandas(result)
+                else:
+                    raise HTTPException(status_code=400, detail=result['message'])
+            finally:
+                # 清理临时文件
+                if os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
         else:
-            raise HTTPException(status_code=400, detail=result['message'])
+            # 使用系统中的模型
+            if not system_status["model_trained"]:
+                raise HTTPException(status_code=400, detail="没有训练的模型")
+            
+            # 如果指定了模型名称，设置当前模型
+            if request.model_name and request.model_name in predictor.get_available_models():
+                predictor.set_current_model(request.model_name)
+            
+            # 进行批量预测
+            result = predictor.batch_predict(request.data)
+            
+            if result['success']:
+                # 序列化结果
+                return serialize_numpy_pandas(result)
+            else:
+                raise HTTPException(status_code=400, detail=result['message'])
             
     except HTTPException:
         raise
@@ -366,35 +531,98 @@ async def batch_predict(data: List[Dict[str, Any]], model_name: Optional[str] = 
         raise HTTPException(status_code=500, detail=f"批量预测失败: {str(e)}")
 
 @app.post("/predict/export")
-async def export_predictions(
-    data: List[Dict[str, Any]], 
-    format: str = "csv",
-    model_name: Optional[str] = None
-):
+async def export_predictions(request: ExportPredictionsRequest):
     """导出预测结果"""
     try:
-        if not system_status["model_trained"]:
-            raise HTTPException(status_code=400, detail="没有训练的模型")
-        
-        # 如果指定了模型名称，设置当前模型
-        if model_name and model_name in predictor.get_available_models():
-            predictor.set_current_model(model_name)
-        
-        # 生成输出文件路径
-        output_filename = f"predictions.{format}"
-        output_path = os.path.join(temp_dir, output_filename)
-        
-        # 导出预测结果
-        result = predictor.export_predictions(data, output_path, format)
-        
-        if result['success']:
-            return FileResponse(
-                path=output_path,
-                filename=output_filename,
-                media_type='application/octet-stream'
-            )
+        # 如果提供了模型数据，使用临时模型
+        if request.model_data:
+            import tempfile
+            import os
+            import pickle
+            import base64
+            
+            # 创建临时文件
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as temp_file:
+                # 解码base64并写入临时文件
+                model_bytes = base64.b64decode(request.model_data)
+                temp_file.write(model_bytes)
+                temp_file_path = temp_file.name
+            
+            try:
+                # 加载临时模型
+                with open(temp_file_path, 'rb') as f:
+                    model = pickle.load(f)
+                
+                # 创建临时预测器
+                temp_predictor = Predictor()
+                temp_predictor.current_model = model
+                temp_predictor.current_model_name = request.model_name or "temp_model"
+                
+                # 如果提供了模型信息数据，使用它
+                if request.model_info_data:
+                    try:
+                        model_info_bytes = base64.b64decode(request.model_info_data)
+                        model_info = pickle.loads(model_info_bytes)
+                        temp_predictor.model_info = model_info
+                    except Exception as e:
+                        logger.error(f"加载模型信息失败: {str(e)}")
+                        # 如果加载失败，尝试从模型训练器获取模型信息
+                        if request.model_name:
+                            for model_name, model_info in model_trainer.model_metrics.items():
+                                if request.model_name in model_name or model_name in request.model_name:
+                                    temp_predictor.model_info = model_info
+                                    break
+                else:
+                    # 尝试从模型训练器获取模型信息
+                    if request.model_name:
+                        for model_name, model_info in model_trainer.model_metrics.items():
+                            if request.model_name in model_name or model_name in request.model_name:
+                                temp_predictor.model_info = model_info
+                                break
+                
+                # 生成输出文件路径
+                output_filename = f"predictions.{request.format}"
+                output_path = os.path.join(temp_dir, output_filename)
+                
+                # 导出预测结果
+                result = temp_predictor.export_predictions(request.data, output_path, request.format)
+                
+                if result['success']:
+                    return FileResponse(
+                        path=output_path,
+                        filename=output_filename,
+                        media_type='application/octet-stream'
+                    )
+                else:
+                    raise HTTPException(status_code=400, detail=result['message'])
+            finally:
+                # 清理临时文件
+                if os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
         else:
-            raise HTTPException(status_code=400, detail=result['message'])
+            # 使用系统中的模型
+            if not system_status["model_trained"]:
+                raise HTTPException(status_code=400, detail="没有训练的模型")
+            
+            # 如果指定了模型名称，设置当前模型
+            if request.model_name and request.model_name in predictor.get_available_models():
+                predictor.set_current_model(request.model_name)
+            
+            # 生成输出文件路径
+            output_filename = f"predictions.{request.format}"
+            output_path = os.path.join(temp_dir, output_filename)
+            
+            # 导出预测结果
+            result = predictor.export_predictions(request.data, output_path, request.format)
+            
+            if result['success']:
+                return FileResponse(
+                    path=output_path,
+                    filename=output_filename,
+                    media_type='application/octet-stream'
+                )
+            else:
+                raise HTTPException(status_code=400, detail=result['message'])
             
     except HTTPException:
         raise

@@ -289,6 +289,7 @@ func (c *Client) TrainModel(ctx context.Context, modelType, targetColumn string,
 		"target_column":        targetColumn,
 		"test_size":            testSize,
 		"tune_hyperparameters": tuneHyperparameters,
+		"return_model":         true, // 总是返回模型数据，不在服务器存储
 	}
 
 	resp, err := c.Post(ctx, "/model/train", nil, data)
@@ -407,11 +408,133 @@ func (c *Client) Predict(ctx context.Context, data map[string]interface{}, model
 	return result, nil
 }
 
+// PredictWithModel 使用模型数据进行预测
+func (c *Client) PredictWithModel(ctx context.Context, data map[string]interface{}, modelName string, modelData string) (map[string]interface{}, error) {
+	requestData := map[string]interface{}{
+		"data":       data,
+		"model_name": modelName,
+	}
+
+	// 如果提供了模型数据，添加到请求中
+	if modelData != "" {
+		requestData["model_data"] = modelData
+	}
+
+	resp, err := c.Post(ctx, "/predict", nil, requestData)
+	if err != nil {
+		return nil, err
+	}
+
+	// Python API 返回的是带有success字段的响应，不是BaseRes格式
+	var result map[string]interface{}
+	err = json.Unmarshal(resp, &result)
+	if err != nil {
+		return nil, gerror.Wrap(err, "解析预测响应失败")
+	}
+
+	// 返回Python API的原始响应，让上层逻辑处理
+	return result, nil
+}
+
+// PredictWithModelAndInfo 使用模型数据和模型信息进行预测
+func (c *Client) PredictWithModelAndInfo(ctx context.Context, data map[string]interface{}, modelName string, modelData string, modelInfoData string) (map[string]interface{}, error) {
+	requestData := map[string]interface{}{
+		"data":       data,
+		"model_name": modelName,
+	}
+
+	// 如果提供了模型数据，添加到请求中
+	if modelData != "" {
+		requestData["model_data"] = modelData
+	}
+
+	// 如果提供了模型信息数据，添加到请求中
+	if modelInfoData != "" {
+		requestData["model_info_data"] = modelInfoData
+	}
+
+	resp, err := c.Post(ctx, "/predict", nil, requestData)
+	if err != nil {
+		return nil, err
+	}
+
+	// Python API 返回的是带有success字段的响应，不是BaseRes格式
+	var result map[string]interface{}
+	err = json.Unmarshal(resp, &result)
+	if err != nil {
+		return nil, gerror.Wrap(err, "解析预测响应失败")
+	}
+
+	// 返回Python API的原始响应，让上层逻辑处理
+	return result, nil
+}
+
 // BatchPredict 批量预测
 func (c *Client) BatchPredict(ctx context.Context, data []map[string]interface{}, modelName string) (map[string]interface{}, error) {
 	requestData := map[string]interface{}{
 		"data":       data,
 		"model_name": modelName,
+	}
+
+	resp, err := c.Post(ctx, "/predict/batch", nil, requestData)
+	if err != nil {
+		return nil, err
+	}
+
+	// Python API 返回的是带有success字段的响应，不是BaseRes格式
+	var result map[string]interface{}
+	err = json.Unmarshal(resp, &result)
+	if err != nil {
+		return nil, gerror.Wrap(err, "解析批量预测响应失败")
+	}
+
+	// 返回Python API的原始响应，让上层逻辑处理
+	return result, nil
+}
+
+// BatchPredictWithModel 使用模型数据进行批量预测
+func (c *Client) BatchPredictWithModel(ctx context.Context, data []map[string]interface{}, modelName string, modelData string) (map[string]interface{}, error) {
+	requestData := map[string]interface{}{
+		"data":       data,
+		"model_name": modelName,
+	}
+
+	// 如果提供了模型数据，添加到请求中
+	if modelData != "" {
+		requestData["model_data"] = modelData
+	}
+
+	resp, err := c.Post(ctx, "/predict/batch", nil, requestData)
+	if err != nil {
+		return nil, err
+	}
+
+	// Python API 返回的是带有success字段的响应，不是BaseRes格式
+	var result map[string]interface{}
+	err = json.Unmarshal(resp, &result)
+	if err != nil {
+		return nil, gerror.Wrap(err, "解析批量预测响应失败")
+	}
+
+	// 返回Python API的原始响应，让上层逻辑处理
+	return result, nil
+}
+
+// BatchPredictWithModelAndInfo 使用模型数据和模型信息进行批量预测
+func (c *Client) BatchPredictWithModelAndInfo(ctx context.Context, data []map[string]interface{}, modelName string, modelData string, modelInfoData string) (map[string]interface{}, error) {
+	requestData := map[string]interface{}{
+		"data":       data,
+		"model_name": modelName,
+	}
+
+	// 如果提供了模型数据，添加到请求中
+	if modelData != "" {
+		requestData["model_data"] = modelData
+	}
+
+	// 如果提供了模型信息数据，添加到请求中
+	if modelInfoData != "" {
+		requestData["model_info_data"] = modelInfoData
 	}
 
 	resp, err := c.Post(ctx, "/predict/batch", nil, requestData)

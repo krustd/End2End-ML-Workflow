@@ -73,8 +73,8 @@ class ModelTrainer:
         """
         return list(self.trained_models.keys())
     
-    def train_model(self, X: pd.DataFrame, y: pd.Series, model_type: str = "linear_regression", 
-                   test_size: float = 0.2, tune_hyperparameters: bool = False) -> Dict[str, Any]:
+    def train_model(self, X: pd.DataFrame, y: pd.Series, model_type: str = "linear_regression",
+                   test_size: float = 0.2, tune_hyperparameters: bool = False, return_model: bool = True) -> Dict[str, Any]:
         """
         训练模型
         
@@ -84,6 +84,7 @@ class ModelTrainer:
             model_type: 模型类型
             test_size: 测试集比例
             tune_hyperparameters: 是否调参
+            return_model: 是否返回模型数据（用于前端存储）
             
         Returns:
             训练结果字典
@@ -143,16 +144,10 @@ class ModelTrainer:
             # 生成模型名称
             model_name = f"{model_type}_{len(self.trained_models) + 1}"
             
-            # 保存模型
-            model_path = os.path.join(self.model_dir, f"{model_name}.pkl")
-            with open(model_path, 'wb') as f:
-                pickle.dump(model, f)
-            
             # 保存模型信息
             model_info = {
                 'model_name': model_name,
                 'model_type': model_type,
-                'model_path': model_path,
                 'feature_names': self.feature_names,
                 'target_name': self.target_name,
                 'train_metrics': train_metrics,
@@ -161,25 +156,63 @@ class ModelTrainer:
                 'tuned': tune_hyperparameters
             }
             
-            info_path = os.path.join(self.model_dir, f"{model_name}_info.json")
-            with open(info_path, 'w') as f:
-                json.dump(model_info, f, indent=2)
+            # 如果需要返回模型数据，序列化模型
+            model_data = None
+            model_info_data = None
+            if return_model:
+                import base64
+                from io import BytesIO
+                
+                # 将模型序列化为字节流，然后编码为base64字符串
+                model_bytes = BytesIO()
+                pickle.dump(model, model_bytes)
+                model_bytes.seek(0)
+                model_data = base64.b64encode(model_bytes.read()).decode('utf-8')
+                
+                # 同时序列化模型信息
+                info_bytes = BytesIO()
+                pickle.dump(model_info, info_bytes)
+                info_bytes.seek(0)
+                model_info_data = base64.b64encode(info_bytes.read()).decode('utf-8')
             
             # 保存到内存
             self.trained_models[model_name] = model
             self.model_metrics[model_name] = model_info
             
-            return {
+            # 构造返回结果
+            result = {
                 'success': True,
                 'message': f'模型 {model_name} 训练成功',
                 'model_name': model_name,
-                'model_path': model_path,
                 'train_metrics': train_metrics,
                 'test_metrics': test_metrics,
                 'cv_metrics': cv_metrics,
                 'feature_names': self.feature_names,
-                'target_name': self.target_name
+                'target_name': self.target_name,
+                'model_info': model_info
             }
+            
+            # 如果需要返回模型数据，添加到结果中
+            if return_model:
+                result['model_data'] = model_data
+                result['model_info_data'] = model_info_data
+                # 添加虚拟的model_path字段以保持与Go后端的兼容性
+                result['model_path'] = f"memory://{model_name}"
+            
+            # 如果仍然需要保存到服务器（向后兼容）
+            if not return_model:
+                model_path = os.path.join(self.model_dir, f"{model_name}.pkl")
+                with open(model_path, 'wb') as f:
+                    pickle.dump(model, f)
+                
+                model_info['model_path'] = model_path
+                info_path = os.path.join(self.model_dir, f"{model_name}_info.json")
+                with open(info_path, 'w') as f:
+                    json.dump(model_info, f, indent=2)
+                
+                result['model_path'] = model_path
+            
+            return result
             
         except Exception as e:
             logger.error(f"模型训练失败: {str(e)}")

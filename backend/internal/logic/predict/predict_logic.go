@@ -38,7 +38,7 @@ func NewPredictLogic() IPredictLogic {
 // Predict 单条预测
 func (s *sPredictLogic) Predict(ctx context.Context, req *v1.PredictReq) (res *v1.PredictRes, err error) {
 	// 调用Python API进行预测
-	result, err := s.client.Predict(ctx, req.Data, req.ModelName)
+	result, err := s.client.PredictWithModelAndInfo(ctx, req.Data, req.ModelName, req.ModelData, req.ModelInfoData)
 	if err != nil {
 		g.Log().Errorf(ctx, "预测失败: %v", err)
 		return nil, gerror.Wrap(err, "预测失败")
@@ -86,7 +86,7 @@ func (s *sPredictLogic) Predict(ctx context.Context, req *v1.PredictReq) (res *v
 // BatchPredict 批量预测
 func (s *sPredictLogic) BatchPredict(ctx context.Context, req *v1.BatchPredictReq) (res *v1.BatchPredictRes, err error) {
 	// 调用Python API进行批量预测
-	result, err := s.client.BatchPredict(ctx, req.Data, req.ModelName)
+	result, err := s.client.BatchPredictWithModelAndInfo(ctx, req.Data, req.ModelName, req.ModelData, req.ModelInfoData)
 	if err != nil {
 		g.Log().Errorf(ctx, "批量预测失败: %v", err)
 		return nil, gerror.Wrap(err, "批量预测失败")
@@ -145,7 +145,7 @@ func (s *sPredictLogic) ExportPredictions(ctx context.Context, req *v1.ExportPre
 	// 调用Python API导出预测结果
 	// 注意：由于导出预测结果需要返回文件，这里需要特殊处理
 	// 我们先调用批量预测API获取结果，然后模拟导出过程
-	result, err := s.client.BatchPredict(ctx, req.Data, req.ModelName)
+	result, err := s.client.BatchPredictWithModelAndInfo(ctx, req.Data, req.ModelName, req.ModelData, req.ModelInfoData)
 	if err != nil {
 		g.Log().Errorf(ctx, "导出预测结果失败: %v", err)
 		return nil, gerror.Wrap(err, "导出预测结果失败")

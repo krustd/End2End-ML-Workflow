@@ -66,6 +66,8 @@ func (s *sModelLogic) TrainModel(ctx context.Context, req *v1.ModelTrainReq) (re
 	modelName, _ := result["model_name"].(string)
 	modelType, _ := result["model_type"].(string)
 	modelPath, _ := result["model_path"].(string)
+	modelData, _ := result["model_data"].(string)
+	modelInfoData, _ := result["model_info_data"].(string)
 
 	// 获取训练指标
 	trainMetrics := convertToMetrics(result["train_metrics"])
@@ -74,14 +76,16 @@ func (s *sModelLogic) TrainModel(ctx context.Context, req *v1.ModelTrainReq) (re
 
 	// 构造响应
 	res = &v1.ModelTrainRes{
-		Success:      true,
-		Message:      "模型训练成功",
-		ModelName:    modelName,
-		ModelType:    modelType,
-		TrainMetrics: trainMetrics,
-		TestMetrics:  testMetrics,
-		CvScores:     cvScores,
-		ModelPath:    modelPath,
+		Success:       true,
+		Message:       "模型训练成功",
+		ModelName:     modelName,
+		ModelType:     modelType,
+		TrainMetrics:  trainMetrics,
+		TestMetrics:   testMetrics,
+		CvScores:      cvScores,
+		ModelPath:     modelPath,
+		ModelData:     modelData,     // 添加模型数据字段
+		ModelInfoData: modelInfoData, // 添加模型信息数据字段
 	}
 
 	return res, nil

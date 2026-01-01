@@ -2,6 +2,8 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { modelApi } from '@/services/api'
 import { ElMessage } from 'element-plus'
+import ModelStorage from '@/utils/modelStorage'
+import type { ModelInfo as StorageModelInfo } from '@/utils/modelStorage'
 
 export interface ModelMetrics {
     [key: string]: number
@@ -14,6 +16,10 @@ export interface ModelInfo {
     test_metrics: ModelMetrics
     cv_scores?: ModelMetrics
     model_path?: string
+    model_data?: string // 新增：模型数据
+    model_info_data?: string // 新增：模型信息数据
+    feature_names?: string[] // 新增：特征名称
+    target_name?: string // 新增：目标列名称
 }
 
 export const useModelStore = defineStore('model', () => {
@@ -85,10 +91,9 @@ export const useModelStore = defineStore('model', () => {
         error.value = null
 
         try {
-            const response = await modelApi.getTrainedModels() as any
-            if (response.success) {
-                trainedModels.value = response.models
-            }
+            // 从本地存储获取已训练的模型
+            const modelNames = ModelStorage.getModelNames()
+            trainedModels.value = modelNames
         } catch (err: any) {
             error.value = err.message || '获取已训练模型失败'
             console.error('获取已训练模型失败:', err)
@@ -109,13 +114,34 @@ export const useModelStore = defineStore('model', () => {
         try {
             const response = await modelApi.trainModel(params) as any
             if (response.success) {
+                // 保存模型到本地存储
+                const modelInfo: StorageModelInfo = {
+                    model_name: response.model_name,
+                    model_type: response.model_type,
+                    feature_names: response.feature_names || [],
+                    target_name: response.target_name || params.target_column || '',
+                    train_metrics: response.train_metrics,
+                    test_metrics: response.test_metrics,
+                    cv_metrics: response.cv_metrics,
+                    tuned: params.tune_hyperparameters || false,
+                    created_at: new Date().toISOString()
+                }
+
+                // 保存模型数据和模型信息
+                if (response.model_data) {
+                    ModelStorage.saveModel(response.model_data, modelInfo, response.model_info_data)
+                }
+
+                // 设置当前模型
                 currentModel.value = {
                     model_name: response.model_name,
                     model_type: response.model_type,
                     train_metrics: response.train_metrics,
                     test_metrics: response.test_metrics,
-                    cv_scores: response.cv_scores,
-                    model_path: response.model_path
+                    cv_scores: response.cv_metrics,
+                    model_data: response.model_data,
+                    feature_names: response.feature_names,
+                    target_name: response.target_name
                 }
 
                 // 更新已训练模型列表
@@ -123,7 +149,7 @@ export const useModelStore = defineStore('model', () => {
                     trainedModels.value.push(response.model_name)
                 }
 
-                ElMessage.success('模型训练完成')
+                ElMessage.success('模型训练完成并已保存到本地')
                 return response
             } else {
                 throw new Error(response.message || '模型训练失败')
