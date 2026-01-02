@@ -5,6 +5,7 @@ import ModelStorage from '@/utils/modelStorage'
 import type { ModelInfo } from '@/utils/modelStorage'
 import { useModelStore } from '@/stores/model'
 import { usePredictStore } from '@/stores/predict'
+import ModelUseDialog from './ModelUseDialog.vue'
 
 const modelStore = useModelStore()
 const predictStore = usePredictStore()
@@ -16,6 +17,8 @@ const importDialogVisible = ref(false)
 const currentModel = ref<ModelInfo | null>(null)
 const importFile = ref<File | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
+const useModelDialogVisible = ref(false)
+const selectedUseModel = ref<ModelInfo | null>(null)
 
 onMounted(() => {
   loadModelList()
@@ -37,7 +40,6 @@ const handleView = (model: ModelInfo) => {
 const handleDelete = (modelName: string) => {
   ModelStorage.deleteModel(modelName)
   loadModelList()
-  // 如果删除的是当前模型，清空当前模型
   if (modelStore.currentModel?.model_name === modelName) {
     modelStore.setCurrentModel(null)
   }
@@ -78,18 +80,8 @@ const handleClearAll = () => {
 }
 
 const handleUseModel = (model: ModelInfo) => {
-  // 设置当前模型
-  modelStore.setCurrentModel({
-    model_name: model.model_name,
-    model_type: model.model_type,
-    train_metrics: model.train_metrics,
-    test_metrics: model.test_metrics,
-    cv_scores: model.cv_metrics,
-    feature_names: model.feature_names,
-    target_name: model.target_name
-  })
-  
-  ElMessage.success(`已选择模型: ${model.model_name}`)
+  selectedUseModel.value = model
+  useModelDialogVisible.value = true
 }
 
 const storageUsage = computed(() => {
@@ -241,7 +233,6 @@ const getModelTypeDisplayName = (modelType: string) => {
       </ElCol>
     </ElRow>
 
-    <!-- 模型详情对话框 -->
     <ElDialog v-model="dialogVisible" title="模型详情" width="70%">
       <div v-if="currentModel" class="model-details">
         <ElRow :gutter="20">
@@ -323,7 +314,6 @@ const getModelTypeDisplayName = (modelType: string) => {
       </div>
     </ElDialog>
 
-    <!-- 导入模型对话框 -->
     <ElDialog v-model="importDialogVisible" title="导入模型" width="40%">
       <div class="import-dialog">
         <ElAlert
@@ -355,6 +345,11 @@ const getModelTypeDisplayName = (modelType: string) => {
         </ElButton>
       </template>
     </ElDialog>
+
+    <ModelUseDialog
+      v-model:visible="useModelDialogVisible"
+      :model="selectedUseModel"
+    />
   </div>
 </template>
 
@@ -429,7 +424,6 @@ const getModelTypeDisplayName = (modelType: string) => {
   text-align: center;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .card-header {
     flex-direction: column;
@@ -442,4 +436,3 @@ const getModelTypeDisplayName = (modelType: string) => {
   }
 }
 </style>
-<!-- </tool_call> -->

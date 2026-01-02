@@ -22,7 +22,6 @@ var (
 		Usage: "main",
 		Brief: "start http server",
 		Func: func(ctx context.Context, parser *gcmd.Parser) (err error) {
-			// 初始化所有服务
 			bootstrapService := bootstrap.New()
 			err = bootstrapService.InitServices(ctx)
 			if err != nil {
@@ -31,7 +30,6 @@ var (
 
 			s := g.Server()
 			s.Group("/", func(group *ghttp.RouterGroup) {
-				// group.Middleware(ghttp.MiddlewareHandlerResponse)
 				group.Middleware(ghttp.MiddlewareCORS)
 				group.Middleware(middleware.ResponseHandler)
 				group.GET("/health", func(r *ghttp.Request) {

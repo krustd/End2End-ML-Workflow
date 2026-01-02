@@ -25,6 +25,8 @@ type ModelTrainRes struct {
 	ModelPath     string             `json:"model_path"`
 	ModelData     string             `json:"model_data"`      // 添加模型数据字段，用于存储base64编码的模型
 	ModelInfoData string             `json:"model_info_data"` // 添加模型信息数据字段，用于存储base64编码的模型信息
+	FeatureNames  []string           `json:"feature_names"`   // 添加特征名称字段，用于存储数据列信息
+	TargetName    string             `json:"target_name"`     // 添加目标列名称字段，用于存储预测目标列信息
 }
 
 // AvailableModelsReq 获取可用模型请求

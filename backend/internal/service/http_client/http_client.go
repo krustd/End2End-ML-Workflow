@@ -16,11 +16,9 @@ import (
 )
 
 const (
-	// PythonAPIHost Python API服务器地址
 	PythonAPIHost = "http://localhost:8000"
 )
 
-// PythonAPIConfig Python API配置
 type PythonAPIConfig struct {
 	Host    string `yaml:"host"`
 	Port    int    `yaml:"port"`
@@ -28,7 +26,6 @@ type PythonAPIConfig struct {
 	Debug   bool   `yaml:"debug"`
 }
 
-// GetPythonAPIConfig 获取Python API配置
 func GetPythonAPIConfig(ctx context.Context) (*PythonAPIConfig, error) {
 	config := &PythonAPIConfig{
 		Host:    "localhost",
@@ -37,7 +34,6 @@ func GetPythonAPIConfig(ctx context.Context) (*PythonAPIConfig, error) {
 		Debug:   false,
 	}
 
-	// 尝试从配置文件读取
 	if err := g.Cfg().MustGet(ctx, "python_api").Struct(config); err != nil {
 		g.Log().Warningf(ctx, "读取Python API配置失败，使用默认配置: %v", err)
 	}
@@ -45,13 +41,11 @@ func GetPythonAPIConfig(ctx context.Context) (*PythonAPIConfig, error) {
 	return config, nil
 }
 
-// Client HTTP客户端
 type Client struct {
 	httpClient *http.Client
 	baseURL    string
 }
 
-// NewClient 创建HTTP客户端
 func NewClient() *Client {
 	ctx := context.Background()
 	config, err := GetPythonAPIConfig(ctx)
@@ -73,7 +67,6 @@ func NewClient() *Client {
 	}
 }
 
-// doRequest 执行HTTP请求
 func (c *Client) doRequest(ctx context.Context, method, endpoint string, headers map[string]string, body io.Reader) ([]byte, error) {
 	url := c.baseURL + endpoint
 
@@ -82,7 +75,6 @@ func (c *Client) doRequest(ctx context.Context, method, endpoint string, headers
 		return nil, gerror.Wrapf(err, "创建请求失败: %s %s", method, endpoint)
 	}
 
-	// 设置请求头
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
@@ -106,12 +98,10 @@ func (c *Client) doRequest(ctx context.Context, method, endpoint string, headers
 	return respBody, nil
 }
 
-// Get 发送GET请求
 func (c *Client) Get(ctx context.Context, endpoint string, headers map[string]string) ([]byte, error) {
 	return c.doRequest(ctx, "GET", endpoint, headers, nil)
 }
 
-// Post 发送POST请求
 func (c *Client) Post(ctx context.Context, endpoint string, headers map[string]string, data interface{}) ([]byte, error) {
 	var body io.Reader
 
@@ -140,12 +130,10 @@ func (c *Client) Post(ctx context.Context, endpoint string, headers map[string]s
 	return c.doRequest(ctx, "POST", endpoint, headers, body)
 }
 
-// PostMultipart 发送multipart/form-data请求
 func (c *Client) PostMultipart(ctx context.Context, endpoint string, fieldName, fileName string, fileData []byte, extraFields map[string]string) ([]byte, error) {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
-	// 添加文件字段
 	part, err := writer.CreateFormFile(fieldName, fileName)
 	if err != nil {
 		return nil, gerror.Wrap(err, "创建表单文件字段失败")
@@ -155,7 +143,6 @@ func (c *Client) PostMultipart(ctx context.Context, endpoint string, fieldName, 
 		return nil, gerror.Wrap(err, "写入文件数据失败")
 	}
 
-	// 添加额外字段
 	for key, value := range extraFields {
 		err = writer.WriteField(key, value)
 		if err != nil {
@@ -175,14 +162,12 @@ func (c *Client) PostMultipart(ctx context.Context, endpoint string, fieldName, 
 	return c.doRequest(ctx, "POST", endpoint, headers, &buf)
 }
 
-// GetSystemStatus 获取系统状态
 func (c *Client) GetSystemStatus(ctx context.Context) (map[string]interface{}, error) {
 	resp, err := c.Get(ctx, "/system/status", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result struct {
 		Success bool                   `json:"success"`
 		Status  map[string]interface{} `json:"status"`
@@ -197,50 +182,42 @@ func (c *Client) GetSystemStatus(ctx context.Context) (map[string]interface{}, e
 		return nil, gerror.New("获取系统状态失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return map[string]interface{}{
 		"success": result.Success,
 		"status":  result.Status,
 	}, nil
 }
 
-// UploadData 上传数据
 func (c *Client) UploadData(ctx context.Context, fileName string, fileData []byte) (map[string]interface{}, error) {
 	resp, err := c.PostMultipart(ctx, "/data/upload", "file", fileName, fileData, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析上传数据响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// GetDataInfo 获取数据信息
 func (c *Client) GetDataInfo(ctx context.Context) (map[string]interface{}, error) {
 	resp, err := c.Get(ctx, "/data/info", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析数据信息响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// GetDataPreview 获取数据预览
 func (c *Client) GetDataPreview(ctx context.Context, rows int) (map[string]interface{}, error) {
 	endpoint := fmt.Sprintf("/data/preview?rows=%d", rows)
 	resp, err := c.Get(ctx, endpoint, nil)
@@ -248,18 +225,15 @@ func (c *Client) GetDataPreview(ctx context.Context, rows int) (map[string]inter
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析数据预览响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// ProcessData 处理数据
 func (c *Client) ProcessData(ctx context.Context, handleMissing, targetColumn string) (map[string]interface{}, error) {
 	data := map[string]interface{}{
 		"handle_missing": handleMissing,
@@ -271,25 +245,22 @@ func (c *Client) ProcessData(ctx context.Context, handleMissing, targetColumn st
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析数据处理响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// TrainModel 训练模型
 func (c *Client) TrainModel(ctx context.Context, modelType, targetColumn string, testSize float64, tuneHyperparameters bool) (map[string]interface{}, error) {
 	data := map[string]interface{}{
 		"model_type":           modelType,
 		"target_column":        targetColumn,
 		"test_size":            testSize,
 		"tune_hyperparameters": tuneHyperparameters,
-		"return_model":         true, // 总是返回模型数据，不在服务器存储
+		"return_model":         true,
 	}
 
 	resp, err := c.Post(ctx, "/model/train", nil, data)
@@ -297,54 +268,45 @@ func (c *Client) TrainModel(ctx context.Context, modelType, targetColumn string,
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析模型训练响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// GetAvailableModels 获取可用模型
 func (c *Client) GetAvailableModels(ctx context.Context) (map[string]interface{}, error) {
 	resp, err := c.Get(ctx, "/model/available", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析可用模型响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// GetTrainedModels 获取已训练模型
 func (c *Client) GetTrainedModels(ctx context.Context) (map[string]interface{}, error) {
 	resp, err := c.Get(ctx, "/model/trained", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析已训练模型响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// GetModelMetrics 获取模型指标
 func (c *Client) GetModelMetrics(ctx context.Context, modelName string) (map[string]interface{}, error) {
 	endpoint := fmt.Sprintf("/model/metrics/%s", modelName)
 	resp, err := c.Get(ctx, endpoint, nil)
@@ -352,18 +314,15 @@ func (c *Client) GetModelMetrics(ctx context.Context, modelName string) (map[str
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析模型指标响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// CompareModels 比较模型
 func (c *Client) CompareModels(ctx context.Context, testSize float64) (map[string]interface{}, error) {
 	data := map[string]interface{}{
 		"test_size": testSize,
@@ -374,18 +333,15 @@ func (c *Client) CompareModels(ctx context.Context, testSize float64) (map[strin
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析模型比较响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// Predict 预测
 func (c *Client) Predict(ctx context.Context, data map[string]interface{}, modelName string) (map[string]interface{}, error) {
 	requestData := map[string]interface{}{
 		"data":       data,
@@ -397,25 +353,21 @@ func (c *Client) Predict(ctx context.Context, data map[string]interface{}, model
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析预测响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// PredictWithModel 使用模型数据进行预测
 func (c *Client) PredictWithModel(ctx context.Context, data map[string]interface{}, modelName string, modelData string) (map[string]interface{}, error) {
 	requestData := map[string]interface{}{
 		"data":       data,
 		"model_name": modelName,
 	}
 
-	// 如果提供了模型数据，添加到请求中
 	if modelData != "" {
 		requestData["model_data"] = modelData
 	}
@@ -425,30 +377,25 @@ func (c *Client) PredictWithModel(ctx context.Context, data map[string]interface
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析预测响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// PredictWithModelAndInfo 使用模型数据和模型信息进行预测
 func (c *Client) PredictWithModelAndInfo(ctx context.Context, data map[string]interface{}, modelName string, modelData string, modelInfoData string) (map[string]interface{}, error) {
 	requestData := map[string]interface{}{
 		"data":       data,
 		"model_name": modelName,
 	}
 
-	// 如果提供了模型数据，添加到请求中
 	if modelData != "" {
 		requestData["model_data"] = modelData
 	}
 
-	// 如果提供了模型信息数据，添加到请求中
 	if modelInfoData != "" {
 		requestData["model_info_data"] = modelInfoData
 	}
@@ -458,18 +405,15 @@ func (c *Client) PredictWithModelAndInfo(ctx context.Context, data map[string]in
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析预测响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// BatchPredict 批量预测
 func (c *Client) BatchPredict(ctx context.Context, data []map[string]interface{}, modelName string) (map[string]interface{}, error) {
 	requestData := map[string]interface{}{
 		"data":       data,
@@ -481,25 +425,21 @@ func (c *Client) BatchPredict(ctx context.Context, data []map[string]interface{}
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析批量预测响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// BatchPredictWithModel 使用模型数据进行批量预测
 func (c *Client) BatchPredictWithModel(ctx context.Context, data []map[string]interface{}, modelName string, modelData string) (map[string]interface{}, error) {
 	requestData := map[string]interface{}{
 		"data":       data,
 		"model_name": modelName,
 	}
 
-	// 如果提供了模型数据，添加到请求中
 	if modelData != "" {
 		requestData["model_data"] = modelData
 	}
@@ -509,30 +449,25 @@ func (c *Client) BatchPredictWithModel(ctx context.Context, data []map[string]in
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析批量预测响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// BatchPredictWithModelAndInfo 使用模型数据和模型信息进行批量预测
 func (c *Client) BatchPredictWithModelAndInfo(ctx context.Context, data []map[string]interface{}, modelName string, modelData string, modelInfoData string) (map[string]interface{}, error) {
 	requestData := map[string]interface{}{
 		"data":       data,
 		"model_name": modelName,
 	}
 
-	// 如果提供了模型数据，添加到请求中
 	if modelData != "" {
 		requestData["model_data"] = modelData
 	}
 
-	// 如果提供了模型信息数据，添加到请求中
 	if modelInfoData != "" {
 		requestData["model_info_data"] = modelInfoData
 	}
@@ -542,18 +477,15 @@ func (c *Client) BatchPredictWithModelAndInfo(ctx context.Context, data []map[st
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析批量预测响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }
 
-// GetModelInfo 获取模型信息
 func (c *Client) GetModelInfo(ctx context.Context, modelName string) (map[string]interface{}, error) {
 	endpoint := fmt.Sprintf("/model/info?model_name=%s", modelName)
 	resp, err := c.Get(ctx, endpoint, nil)
@@ -561,13 +493,11 @@ func (c *Client) GetModelInfo(ctx context.Context, modelName string) (map[string
 		return nil, err
 	}
 
-	// Python API 返回的是带有success字段的响应，不是BaseRes格式
 	var result map[string]interface{}
 	err = json.Unmarshal(resp, &result)
 	if err != nil {
 		return nil, gerror.Wrap(err, "解析模型信息响应失败")
 	}
 
-	// 返回Python API的原始响应，让上层逻辑处理
 	return result, nil
 }

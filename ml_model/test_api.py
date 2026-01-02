@@ -1,23 +1,17 @@
 #!/usr/bin/env python3
-"""
-测试 API 端点，确保 numpy 和 pandas 数据类型序列化修复有效
-"""
 
 import requests
 import json
 import os
 
 def test_api_endpoints():
-    """测试 API 端点"""
     base_url = "http://localhost:8000"
     
-    # 测试数据文件路径
     data_file = "/Users/krust/Code/DataAnalysisFinalProject/housing_data_clean.csv"
     
     print("测试 API 端点...")
     
     try:
-        # 1. 测试根路径
         print("1. 测试根路径...")
         response = requests.get(f"{base_url}/")
         if response.status_code == 200:
@@ -26,7 +20,6 @@ def test_api_endpoints():
             print(f"❌ 根路径测试失败: {response.status_code}")
             return False
         
-        # 2. 测试系统状态
         print("2. 测试系统状态...")
         response = requests.get(f"{base_url}/system/status")
         if response.status_code == 200:
@@ -35,7 +28,6 @@ def test_api_endpoints():
             print(f"❌ 系统状态测试失败: {response.status_code}")
             return False
         
-        # 3. 测试数据上传
         print("3. 测试数据上传...")
         with open(data_file, 'rb') as f:
             files = {'file': f}
@@ -49,7 +41,6 @@ def test_api_endpoints():
             print(f"错误信息: {response.text}")
             return False
         
-        # 4. 测试获取数据信息
         print("4. 测试获取数据信息...")
         response = requests.get(f"{base_url}/data/info")
         if response.status_code == 200:
@@ -60,7 +51,6 @@ def test_api_endpoints():
             print(f"错误信息: {response.text}")
             return False
         
-        # 5. 测试数据预览
         print("5. 测试数据预览...")
         response = requests.get(f"{base_url}/data/preview")
         if response.status_code == 200:
@@ -71,7 +61,6 @@ def test_api_endpoints():
             print(f"错误信息: {response.text}")
             return False
         
-        # 6. 测试数据处理
         print("6. 测试数据处理...")
         response = requests.post(
             f"{base_url}/data/process",
@@ -85,7 +74,6 @@ def test_api_endpoints():
             print(f"错误信息: {response.text}")
             return False
         
-        # 7. 测试模型训练
         print("7. 测试模型训练...")
         response = requests.post(
             f"{base_url}/model/train",
@@ -104,7 +92,6 @@ def test_api_endpoints():
             print(f"错误信息: {response.text}")
             return False
         
-        # 8. 测试获取可用模型
         print("8. 测试获取可用模型...")
         response = requests.get(f"{base_url}/model/available")
         if response.status_code == 200:
@@ -115,7 +102,6 @@ def test_api_endpoints():
             print(f"错误信息: {response.text}")
             return False
         
-        # 9. 测试预测
         print("9. 测试预测...")
         response = requests.post(
             f"{base_url}/predict",

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ElCard, ElRow, ElCol, ElAlert, ElTimeline, ElTimelineItem } from 'element-plus'
+import { Upload, Setting, TrendCharts, Download } from '@element-plus/icons-vue'
 </script>
 
 <template>
@@ -14,14 +15,13 @@ import { ElCard, ElRow, ElCol, ElAlert, ElTimeline, ElTimelineItem } from 'eleme
           <ElAlert
             title="欢迎使用基于机器学习的数据分析与统计系统"
             type="info"
-            description="本系统提供了完整的数据分析流程，包括数据上传、模型训练和预测功能。"
+            description="本系统提供了完整的数据分析流程，包括数据上传与处理、模型训练配置、模型评估与结果、以及预测与导出功能。"
             show-icon
             :closable="false"
             style="margin-bottom: 30px;"
           />
           
           <ElRow :gutter="20">
-            <!-- 这个系统能帮做什么？ -->
             <ElCol :span="24">
               <ElCard class="section-card" shadow="never">
                 <template #header>
@@ -32,47 +32,46 @@ import { ElCard, ElRow, ElCol, ElAlert, ElTimeline, ElTimelineItem } from 'eleme
                 <ul>
                   <li>上传和分析CSV格式的数据文件</li>
                   <li>自动进行数据预处理和特征工程</li>
-                  <li>训练多种机器学习回归模型</li>
-                  <li>评估和比较不同模型的性能</li>
-                  <li>使用训练好的模型进行预测</li>
-                  <li>导出预测结果为多种格式</li>
+                  <li>配置和训练多种机器学习回归模型</li>
+                  <li>评估和比较不同模型的性能指标</li>
+                  <li>使用训练好的模型进行单条或批量预测</li>
+                  <li>导出预测结果为CSV、Excel或JSON格式</li>
                 </ul>
                 
                 <p>系统适用于各种数据分析场景，如房价预测、销售预测、实验数据分析等。</p>
               </ElCard>
             </ElCol>
             
-            <!-- 完整使用流程 -->
             <ElCol :span="24" style="margin-top: 20px;">
               <ElCard class="section-card" shadow="never">
                 <template #header>
-                  <h3>完整使用流程（3步）</h3>
+                  <h3>完整使用流程</h3>
                 </template>
                 
-                <ElTimeline>
-                  <ElTimelineItem
-                    title="Step 1: 数据上传与处理"
-                    description="在主页面选择Step1 数据标签页，上传CSV格式的数据文件。系统会自动分析数据结构，显示数据预览和基本信息。您可以选择目标列和缺失值处理方式，然后点击处理数据按钮。"
-                    :type="'primary'"
-                    :icon="'UploadFilled'"
-                  />
-                  <ElTimelineItem
-                    title="Step 2: 模型训练"
-                    description="切换到Step2 模型标签页，选择合适的模型类型（如线性回归、随机森林等），设置目标列和训练参数，然后点击开始训练模型按钮。系统会显示训练进度和评估指标。"
-                    :type="'success'"
-                    :icon="'Tools'"
-                  />
-                  <ElTimelineItem
-                    title="Step 3: 预测与导出"
-                    description="在Step3 预测标签页中，您可以进行单条预测或批量预测。输入特征值，选择已训练的模型，点击开始预测按钮。预测完成后，可以导出结果为CSV、Excel或JSON格式。"
-                    :type="'warning'"
-                    :icon="'Download'"
-                  />
-                </ElTimeline>
+               <ElTimeline>
+  <ElTimelineItem :type="'primary'" :icon="Upload">
+    <h4>Step 1: 数据上传与处理</h4>
+    <p>在主页面选择Step1 数据标签页，上传CSV格式的数据文件。系统会自动分析数据结构，显示数据预览和基本信息。您可以选择目标列和缺失值处理方式，然后点击处理数据按钮。完成数据处理后，系统将自动允许您进入下一步。</p>
+  </ElTimelineItem>
+  
+  <ElTimelineItem :type="'success'" :icon="Setting">
+    <h4>Step 2: 模型训练配置</h4>
+    <p>切换到Step2 模型标签页，选择合适的模型类型（如线性回归、随机森林等），设置目标列、测试集比例和是否开启超参数调优，然后点击开始训练模型按钮。系统会显示训练进度和评估指标。</p>
+  </ElTimelineItem>
+  
+  <ElTimelineItem :type="'info'" :icon="TrendCharts">
+    <h4>Step 3: 模型评估与结果</h4>
+    <p>模型训练完成后，系统会显示详细的评估指标，包括训练集和测试集的性能指标。您可以查看模型准确率、特征重要性等信息，确认模型是否满足需求。</p>
+  </ElTimelineItem>
+  
+  <ElTimelineItem :type="'warning'" :icon="Download">
+    <h4>Step 4: 预测与导出</h4>
+    <p>在Step3 预测标签页中，系统将自动使用您在Step2中训练的模型。您可以进行单条预测或批量预测。输入特征值，点击开始预测按钮。预测完成后，可以导出结果为CSV、Excel或JSON格式。</p>
+  </ElTimelineItem>
+</ElTimeline>
               </ElCard>
             </ElCol>
             
-            <!-- 常见问题/错误提示 -->
             <ElCol :span="24" style="margin-top: 20px;">
               <ElCard class="section-card" shadow="never">
                 <template #header>
@@ -92,10 +91,11 @@ import { ElCard, ElRow, ElCol, ElAlert, ElTimeline, ElTimelineItem } from 'eleme
                   <ElCol :span="12">
                     <h4>模型训练问题</h4>
                     <ul>
-                      <li><strong>目标列选择：</strong>目标列必须是数值型数据</li>
+                      <li><strong>目标列选择：</strong>目标列必须是数值型数据，且需要在数据处理步骤中指定</li>
                       <li><strong>训练时间过长：</strong>大数据集训练可能需要较长时间，请耐心等待</li>
                       <li><strong>模型准确率低：</strong>尝试调整测试集比例或开启超参数调优</li>
                       <li><strong>内存不足：</strong>大数据集可能导致内存不足，可考虑减少数据量</li>
+                      <li><strong>无法进入模型训练页面：</strong>确保已完成数据处理步骤，系统会自动允许进入下一步</li>
                     </ul>
                   </ElCol>
                 </ElRow>
@@ -123,7 +123,6 @@ import { ElCard, ElRow, ElCol, ElAlert, ElTimeline, ElTimelineItem } from 'eleme
               </ElCard>
             </ElCol>
             
-            <!-- 适合谁？不适合谁？ -->
             <ElCol :span="24" style="margin-top: 20px;">
               <ElCard class="section-card" shadow="never">
                 <template #header>
@@ -209,7 +208,6 @@ import { ElCard, ElRow, ElCol, ElAlert, ElTimeline, ElTimelineItem } from 'eleme
   color: #303133;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .instructions-container {
     padding: 0 10px;
@@ -228,5 +226,19 @@ import { ElCard, ElRow, ElCol, ElAlert, ElTimeline, ElTimelineItem } from 'eleme
   .section-card h4 {
     font-size: 14px;
   }
+}
+
+.el-timeline-item h4 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  color: #303133;
+  font-weight: bold;
+}
+
+.el-timeline-item p {
+  margin: 0;
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.6;
 }
 </style>

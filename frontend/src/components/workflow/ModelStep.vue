@@ -15,7 +15,6 @@ const selectedModelType = ref(settingsStore.defaultModel)
 const testSize = ref(0.2)
 const tuneHyperparameters = ref(false)
 
-// 使用数据存储中的目标列
 const selectedTargetColumn = computed({
   get: () => dataStore.targetColumn,
   set: (value) => dataStore.setTargetColumn(value)
@@ -33,10 +32,8 @@ onMounted(async () => {
   await modelStore.fetchAvailableModels()
   await modelStore.fetchTrainedModels()
   
-  // 使用设置中的默认模型
   selectedModelType.value = settingsStore.defaultModel
   
-  // 如果有数据但没有选择目标列，设置默认目标列
   if (hasData.value && numericColumnOptions.value && numericColumnOptions.value.length > 0 && !dataStore.targetColumn) {
     dataStore.setTargetColumn(numericColumnOptions.value[0]?.value || '')
   }
@@ -51,7 +48,6 @@ const handleTrainModel = async () => {
       tune_hyperparameters: tuneHyperparameters.value
     })
     
-    // 更新系统状态
     systemStore.updateSystemStatus({
       model_trained: true,
       current_step: '预测',
@@ -59,13 +55,16 @@ const handleTrainModel = async () => {
     })
   } catch (error) {
     console.error('模型训练失败:', error)
+    systemStore.updateSystemStatus({
+      model_trained: false,
+      current_step: '模型训练'
+    })
   }
 }
 
 const getModelAccuracy = () => {
   if (!currentModel.value || !currentModel.value.test_metrics) return 0
   
-  // 尝试获取R²分数，如果没有则使用其他指标
   const metrics = currentModel.value.test_metrics
   return metrics.r2 || metrics.r_squared || metrics.accuracy || 0
 }
@@ -77,7 +76,6 @@ const formatMetricValue = (value: number) => {
 
 <template>
   <div class="model-step">
-    <!-- 模型说明 -->
     <ElRow :gutter="20">
       <ElCol :span="24">
         <ElCard class="info-card">
@@ -99,7 +97,6 @@ const formatMetricValue = (value: number) => {
       </ElCol>
     </ElRow>
 
-    <!-- 模型训练配置 -->
     <ElRow :gutter="20" style="margin-top: 20px;">
       <ElCol :span="24">
         <ElCard class="config-card">
@@ -183,7 +180,6 @@ const formatMetricValue = (value: number) => {
       </ElCol>
     </ElRow>
 
-    <!-- 训练进度 -->
     <ElRow v-if="training" :gutter="20" style="margin-top: 20px;">
       <ElCol :span="24">
         <ElCard class="progress-card">
@@ -212,7 +208,6 @@ const formatMetricValue = (value: number) => {
       </ElCol>
     </ElRow>
 
-    <!-- 模型训练结果 -->
     <ElRow v-if="hasTrainedModel && currentModel" :gutter="20" style="margin-top: 20px;">
       <ElCol :span="24">
         <ElCard class="result-card">
@@ -234,10 +229,27 @@ const formatMetricValue = (value: number) => {
           <ElDescriptions :column="2" border>
             <ElDescriptionsItem label="模型名称">{{ currentModel.model_name }}</ElDescriptionsItem>
             <ElDescriptionsItem label="模型类型">{{ currentModel.model_type }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="目标列">{{ currentModel.target_name || '未知' }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="特征数量">{{ currentModel.feature_names ? currentModel.feature_names.length : 0 }}</ElDescriptionsItem>
             <ElDescriptionsItem label="准确率" :span="2">
               <ElTag type="success" size="large">{{ formatMetricValue(getModelAccuracy()) }}</ElTag>
             </ElDescriptionsItem>
           </ElDescriptions>
+          
+          <div v-if="currentModel.feature_names && currentModel.feature_names.length > 0" style="margin-top: 20px;">
+            <h4>特征列（数据列）</h4>
+            <div class="feature-tags">
+              <ElTag
+                v-for="(feature, index) in currentModel.feature_names"
+                :key="index"
+                type="info"
+                size="small"
+                style="margin-right: 8px; margin-bottom: 8px;"
+              >
+                {{ feature }}
+              </ElTag>
+            </div>
+          </div>
           
           <div style="margin-top: 20px;">
             <h4>模型评估指标</h4>
@@ -270,7 +282,6 @@ const formatMetricValue = (value: number) => {
       </ElCol>
     </ElRow>
 
-    <!-- 提示信息 -->
     <ElRow v-if="!hasData" :gutter="20" style="margin-top: 20px;">
       <ElCol :span="24">
         <ElAlert
@@ -342,7 +353,16 @@ const formatMetricValue = (value: number) => {
   font-weight: 500;
 }
 
-/* 响应式设计 */
+.feature-tags {
+  margin-top: 10px;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  border: 1px solid #e4e7ed;
+}
+
 @media (max-width: 768px) {
   .form-item {
     margin-bottom: 15px;

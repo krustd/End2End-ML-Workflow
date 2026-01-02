@@ -32,30 +32,28 @@ const allColumnOptions = computed(() => dataStore.allColumnOptions)
 onMounted(async () => {
   await modelStore.fetchTrainedModels()
   
-  // 如果有当前模型，设置为默认选择
   if (currentModel.value) {
     selectedModel.value = currentModel.value.model_name
     predictForm.value.model_name = currentModel.value.model_name
-  } else {
-    // 如果没有当前模型，使用设置中的默认模型
-    selectedModel.value = settingsStore.defaultModel
-    predictForm.value.model_name = settingsStore.defaultModel
   }
   
-  // 初始化预测表单
   if (allColumnOptions.value) {
     allColumnOptions.value.forEach(col => {
-      // 目标列不需要输入值
       predictForm.value.data[col.value] = col.value === dataStore.targetColumn ? null : ''
     })
   }
 })
 
 const handlePredict = async () => {
+  if (!currentModel.value) {
+    console.error('没有可用的模型，请先在Step2训练模型')
+    return
+  }
+  
   try {
     await predictStore.predict({
       data: predictForm.value.data,
-      model_name: selectedModel.value
+      model_name: currentModel.value.model_name
     })
   } catch (error) {
     console.error('预测失败:', error)
@@ -63,16 +61,26 @@ const handlePredict = async () => {
 }
 
 const handleBatchPredict = async () => {
+  if (!currentModel.value) {
+    console.error('没有可用的模型，请先在Step2训练模型')
+    return
+  }
+  
   try {
-    await predictStore.batchPredict(batchData.value, selectedModel.value)
+    await predictStore.batchPredict(batchData.value, currentModel.value.model_name)
   } catch (error) {
     console.error('批量预测失败:', error)
   }
 }
 
 const handleExportPredictions = async () => {
+  if (!currentModel.value) {
+    console.error('没有可用的模型，请先在Step2训练模型')
+    return
+  }
+  
   try {
-    await predictStore.exportPredictions(batchData.value, exportFormat.value, selectedModel.value)
+    await predictStore.exportPredictions(batchData.value, exportFormat.value, currentModel.value.model_name)
   } catch (error) {
     console.error('导出预测结果失败:', error)
   }
@@ -82,7 +90,6 @@ const addBatchDataRow = () => {
   const newRow: Record<string, any> = {}
   if (allColumnOptions.value) {
     allColumnOptions.value.forEach(col => {
-      // 目标列不需要输入值
       newRow[col.value] = col.value === dataStore.targetColumn ? null : ''
     })
   }
@@ -100,21 +107,14 @@ const clearBatchData = () => {
 const resetPredictForm = () => {
   if (allColumnOptions.value) {
     allColumnOptions.value.forEach(col => {
-      // 目标列不需要输入值
       predictForm.value.data[col.value] = col.value === dataStore.targetColumn ? null : ''
     })
   }
-}
-
-const handleModelChange = (value: string) => {
-  selectedModel.value = value
-  predictForm.value.model_name = value
 }
 </script>
 
 <template>
   <div class="predict-step">
-    <!-- 单条预测 -->
     <ElRow :gutter="20">
       <ElCol :span="24">
         <ElCard class="single-predict-card">
@@ -125,7 +125,7 @@ const handleModelChange = (value: string) => {
           <ElAlert
             title="输入特征值进行预测"
             type="info"
-            description="请填写各特征的值，然后点击开始预测按钮。系统将使用已训练的模型进行预测。"
+            description="请填写各特征的值，然后点击开始预测按钮。系统将自动使用您在Step2中训练的模型进行预测。"
             show-icon
             :closable="false"
             style="margin-bottom: 20px;"
@@ -134,15 +134,11 @@ const handleModelChange = (value: string) => {
           <ElRow :gutter="20">
             <ElCol :span="16">
               <ElForm label-width="120px">
-                <ElFormItem label="选择模型">
-                  <ElSelect v-model="selectedModel" @change="handleModelChange" placeholder="请选择模型" style="width: 100%;">
-                    <ElOption
-                      v-for="option in trainedModelOptions"
-                      :key="option.value"
-                      :label="option.label"
-                      :value="option.value"
-                    />
-                  </ElSelect>
+                <ElFormItem label="当前模型" v-if="currentModel">
+                  <div class="current-model-info">
+                    <ElTag type="success" size="large">{{ currentModel.model_type }}</ElTag>
+                    <span class="model-name">{{ currentModel.model_name }}</span>
+                  </div>
                 </ElFormItem>
                 
                 <ElFormItem v-for="column in allColumnOptions" :key="column.value" :label="column.label">
@@ -161,11 +157,11 @@ const handleModelChange = (value: string) => {
             </ElCol>
             <ElCol :span="8">
               <div class="predict-actions">
-                <ElButton 
-                  type="primary" 
-                  @click="handlePredict" 
+                <ElButton
+                  type="primary"
+                  @click="handlePredict"
                   :loading="loading"
-                  :disabled="!selectedModel"
+                  :disabled="!currentModel"
                   size="large"
                   style="width: 100%; margin-bottom: 15px;"
                 >
@@ -176,7 +172,6 @@ const handleModelChange = (value: string) => {
                 </ElButton>
               </div>
               
-              <!-- 预测结果 -->
               <div v-if="predictionResult" class="prediction-result">
                 <ElCard shadow="always">
                   <template #header>
@@ -197,7 +192,6 @@ const handleModelChange = (value: string) => {
       </ElCol>
     </ElRow>
 
-    <!-- 批量预测 -->
     <ElRow :gutter="20" style="margin-top: 20px;">
       <ElCol :span="24">
         <ElCard class="batch-predict-card">
@@ -214,7 +208,7 @@ const handleModelChange = (value: string) => {
           <ElAlert
             title="批量预测说明"
             type="info"
-            description="可以添加多行数据进行批量预测，预测完成后可以导出结果。"
+            description="可以添加多行数据进行批量预测，预测完成后可以导出结果。系统将自动使用您在Step2中训练的模型。"
             show-icon
             :closable="false"
             style="margin-bottom: 20px;"
@@ -259,21 +253,17 @@ const handleModelChange = (value: string) => {
           <div class="batch-predict-controls">
             <ElRow :gutter="20">
               <ElCol :span="8">
-                <ElSelect v-model="selectedModel" @change="handleModelChange" placeholder="请选择模型" style="width: 100%;">
-                  <ElOption
-                    v-for="option in trainedModelOptions"
-                    :key="option.value"
-                    :label="option.label"
-                    :value="option.value"
-                  />
-                </ElSelect>
+                <div class="current-model-info" v-if="currentModel">
+                  <ElTag type="success" size="large">{{ currentModel.model_type }}</ElTag>
+                  <span class="model-name">{{ currentModel.model_name }}</span>
+                </div>
               </ElCol>
               <ElCol :span="8">
-                <ElButton 
-                  type="primary" 
-                  @click="handleBatchPredict" 
+                <ElButton
+                  type="primary"
+                  @click="handleBatchPredict"
                   :loading="loading"
-                  :disabled="!selectedModel || batchData.length === 0"
+                  :disabled="!currentModel || batchData.length === 0"
                   style="width: 100%;"
                 >
                   批量预测
@@ -299,7 +289,6 @@ const handleModelChange = (value: string) => {
             </div>
           </div>
           
-          <!-- 批量预测结果 -->
           <div v-if="batchPredictionResult && batchPredictionResult.predictions.length" style="margin-top: 20px;">
             <ElCard shadow="always">
               <template #header>
@@ -328,13 +317,12 @@ const handleModelChange = (value: string) => {
       </ElCol>
     </ElRow>
 
-    <!-- 提示信息 -->
     <ElRow v-if="!hasTrainedModel" :gutter="20" style="margin-top: 20px;">
       <ElCol :span="24">
         <ElAlert
           title="请先训练模型"
           type="warning"
-          description="请先在Step2 模型页面训练机器学习模型。"
+          description="请先在Step2 模型页面训练机器学习模型。预测步骤将自动使用您在Step2中训练的模型。"
           show-icon
           :closable="false"
         />
@@ -387,13 +375,27 @@ const handleModelChange = (value: string) => {
   margin-top: 20px;
 }
 
+.current-model-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background-color: #f0f9ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+}
+
+.model-name {
+  font-size: 14px;
+  color: #606266;
+}
+
 .batch-predict-controls {
   background-color: #f8f9fa;
   padding: 15px;
   border-radius: 4px;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .predict-actions {
     padding: 15px;

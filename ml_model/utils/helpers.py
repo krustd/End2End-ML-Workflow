@@ -1,7 +1,3 @@
-"""
-工具函数模块
-"""
-
 import os
 import json
 import pandas as pd
@@ -9,19 +5,16 @@ import numpy as np
 from typing import Dict, List, Any, Optional, Union
 import logging
 
-# 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 def ensure_dir(directory: str) -> None:
-    """确保目录存在"""
     if not os.path.exists(directory):
         os.makedirs(directory)
 
 
 def save_json(data: Dict[str, Any], file_path: str) -> bool:
-    """保存数据为JSON文件"""
     try:
         ensure_dir(os.path.dirname(file_path))
         with open(file_path, 'w', encoding='utf-8') as f:
@@ -33,7 +26,6 @@ def save_json(data: Dict[str, Any], file_path: str) -> bool:
 
 
 def load_json(file_path: str) -> Optional[Dict[str, Any]]:
-    """加载JSON文件"""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -43,26 +35,21 @@ def load_json(file_path: str) -> Optional[Dict[str, Any]]:
 
 
 def validate_csv_file(file_path: str) -> Dict[str, Any]:
-    """验证CSV文件"""
     try:
-        # 检查文件是否存在
         if not os.path.exists(file_path):
             return {
                 'valid': False,
                 'message': '文件不存在'
             }
         
-        # 检查文件扩展名
         if not file_path.lower().endswith('.csv'):
             return {
                 'valid': False,
                 'message': '文件格式不支持，请上传CSV文件'
             }
         
-        # 尝试读取文件
         df = pd.read_csv(file_path, nrows=5)
         
-        # 检查是否有数据
         if df.empty:
             return {
                 'valid': False,
@@ -84,7 +71,6 @@ def validate_csv_file(file_path: str) -> Dict[str, Any]:
 
 
 def format_metrics(metrics: Dict[str, float]) -> Dict[str, str]:
-    """格式化评估指标"""
     formatted = {}
     for key, value in metrics.items():
         if isinstance(value, float):
@@ -95,7 +81,6 @@ def format_metrics(metrics: Dict[str, float]) -> Dict[str, str]:
 
 
 def generate_model_summary(model_metrics: Dict[str, Any]) -> Dict[str, Any]:
-    """生成模型摘要"""
     test_metrics = model_metrics.get('test_metrics', {})
     cv_scores = model_metrics.get('cv_scores', {})
     
@@ -114,7 +99,6 @@ def generate_model_summary(model_metrics: Dict[str, Any]) -> Dict[str, Any]:
 def create_prediction_report(predictions: List[Dict[str, Any]], 
                            input_data: List[Dict[str, Any]], 
                            model_info: Dict[str, Any]) -> Dict[str, Any]:
-    """创建预测报告"""
     report = {
         'title': '预测结果报告',
         'model_info': model_info,
@@ -133,7 +117,6 @@ def create_prediction_report(predictions: List[Dict[str, Any]],
 
 
 def calculate_feature_importance(model, feature_names: List[str]) -> Dict[str, float]:
-    """计算特征重要性"""
     try:
         if hasattr(model, 'feature_importances_'):
             importances = model.feature_importances_
@@ -151,7 +134,6 @@ def calculate_feature_importance(model, feature_names: List[str]) -> Dict[str, f
 
 
 def detect_outliers(df: pd.DataFrame, column: str, method: str = 'iqr') -> List[int]:
-    """检测异常值"""
     try:
         if method == 'iqr':
             Q1 = df[column].quantile(0.25)
@@ -173,7 +155,6 @@ def detect_outliers(df: pd.DataFrame, column: str, method: str = 'iqr') -> List[
 
 
 def generate_data_profile(df: pd.DataFrame) -> Dict[str, Any]:
-    """生成数据概要"""
     profile = {
         'shape': df.shape,
         'columns': list(df.columns),
@@ -183,7 +164,6 @@ def generate_data_profile(df: pd.DataFrame) -> Dict[str, Any]:
         'categorical_summary': {}
     }
     
-    # 数值列摘要
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     for col in numeric_cols:
         profile['numeric_summary'][col] = {
@@ -197,7 +177,6 @@ def generate_data_profile(df: pd.DataFrame) -> Dict[str, Any]:
             'q75': df[col].quantile(0.75)
         }
     
-    # 分类列摘要
     categorical_cols = df.select_dtypes(include=['object', 'category']).columns
     for col in categorical_cols:
         profile['categorical_summary'][col] = {
@@ -211,7 +190,6 @@ def generate_data_profile(df: pd.DataFrame) -> Dict[str, Any]:
 
 
 def safe_float_conversion(value: Any) -> Optional[float]:
-    """安全地将值转换为浮点数"""
     try:
         return float(value)
     except (ValueError, TypeError):
@@ -219,7 +197,6 @@ def safe_float_conversion(value: Any) -> Optional[float]:
 
 
 def safe_int_conversion(value: Any) -> Optional[int]:
-    """安全地将值转换为整数"""
     try:
         return int(value)
     except (ValueError, TypeError):
@@ -227,26 +204,14 @@ def safe_int_conversion(value: Any) -> Optional[int]:
 
 
 def truncate_string(text: str, max_length: int = 50) -> str:
-    """截断字符串"""
     if len(text) <= max_length:
         return text
     return text[:max_length-3] + "..."
 
-
 def serialize_numpy_pandas(obj: Any) -> Any:
-    """
-    递归地将 numpy 和 pandas 数据类型转换为可序列化的 Python 原生类型
-    
-    Args:
-        obj: 需要序列化的对象
-        
-    Returns:
-        可序列化的对象
-    """
     if obj is None:
         return None
     
-    # 处理 numpy 标量
     if isinstance(obj, (np.integer, np.int64, np.int32)):
         return int(obj)
     elif isinstance(obj, (np.floating, np.float64, np.float32)):
@@ -263,11 +228,9 @@ def serialize_numpy_pandas(obj: Any) -> Any:
         return obj.isoformat()
     elif isinstance(obj, pd.Timedelta):
         return str(obj)
-    # 处理 numpy.dtypes.Float64DType 和 numpy.dtypes.Int64DType 等类型
     elif str(type(obj)).startswith("<class 'numpy.dtypes"):
         return str(obj)
     elif hasattr(obj, 'dtype'):
-        # 处理 numpy.dtypes.Float64DType 等类型
         dtype_str = str(obj.dtype)
         if dtype_str.startswith('float'):
             return float(obj) if hasattr(obj, 'item') else str(obj)

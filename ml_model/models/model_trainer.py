@@ -1,8 +1,3 @@
-"""
-模型训练器模块
-负责机器学习模型的训练和评估
-"""
-
 import os
 import pickle
 import json
@@ -16,26 +11,21 @@ from sklearn.svm import SVR
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 import logging
 
-# 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class ModelTrainer:
-    """模型训练器类"""
     
     def __init__(self):
-        """初始化模型训练器"""
         self.models = {}
         self.trained_models = {}
         self.model_metrics = {}
         self.feature_names = []
         self.target_name = ""
         
-        # 注册可用模型
         self._register_models()
         
-        # 确保模型保存目录存在
         self.model_dir = "saved_models"
         try:
             os.makedirs(self.model_dir, exist_ok=True)
@@ -45,7 +35,6 @@ class ModelTrainer:
             raise
     
     def _register_models(self):
-        """注册可用的模型"""
         self.models = {
             "linear_regression": LinearRegression(),
             "ridge": Ridge(),
@@ -56,71 +45,37 @@ class ModelTrainer:
         }
     
     def get_available_models(self) -> List[str]:
-        """
-        获取可用的模型列表
-        
-        Returns:
-            模型名称列表
-        """
         return list(self.models.keys())
     
     def get_trained_models(self) -> List[str]:
-        """
-        获取已训练的模型列表
-        
-        Returns:
-            已训练模型名称列表
-        """
         return list(self.trained_models.keys())
     
     def train_model(self, X: pd.DataFrame, y: pd.Series, model_type: str = "linear_regression",
                    test_size: float = 0.2, tune_hyperparameters: bool = False, return_model: bool = True) -> Dict[str, Any]:
-        """
-        训练模型
-        
-        Args:
-            X: 特征DataFrame
-            y: 目标Series
-            model_type: 模型类型
-            test_size: 测试集比例
-            tune_hyperparameters: 是否调参
-            return_model: 是否返回模型数据（用于前端存储）
-            
-        Returns:
-            训练结果字典
-        """
         try:
-            # 检查模型类型是否有效
             if model_type not in self.models:
                 return {
                     'success': False,
                     'message': f'不支持的模型类型: {model_type}'
                 }
             
-            # 保存特征和目标名称
             self.feature_names = list(X.columns)
             self.target_name = y.name if y.name else "target"
             
-            # 分割数据集
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=42
             )
             
-            # 获取模型
             model = self.models[model_type]
             
-            # 如果需要调参
             if tune_hyperparameters:
                 model = self._tune_hyperparameters(model, model_type, X_train, y_train)
             
-            # 训练模型
             model.fit(X_train, y_train)
             
-            # 预测
             y_train_pred = model.predict(X_train)
             y_test_pred = model.predict(X_test)
             
-            # 计算指标
             train_metrics = {
                 'r2': r2_score(y_train, y_train_pred),
                 'rmse': np.sqrt(mean_squared_error(y_train, y_train_pred)),
@@ -133,7 +88,6 @@ class ModelTrainer:
                 'mae': mean_absolute_error(y_test, y_test_pred)
             }
             
-            # 交叉验证
             cv_scores = cross_val_score(model, X, y, cv=5, scoring='r2')
             cv_metrics = {
                 'mean': cv_scores.mean(),
@@ -141,10 +95,8 @@ class ModelTrainer:
                 'scores': cv_scores.tolist()
             }
             
-            # 生成模型名称
             model_name = f"{model_type}_{len(self.trained_models) + 1}"
             
-            # 保存模型信息
             model_info = {
                 'model_name': model_name,
                 'model_type': model_type,
@@ -156,30 +108,25 @@ class ModelTrainer:
                 'tuned': tune_hyperparameters
             }
             
-            # 如果需要返回模型数据，序列化模型
             model_data = None
             model_info_data = None
             if return_model:
                 import base64
                 from io import BytesIO
                 
-                # 将模型序列化为字节流，然后编码为base64字符串
                 model_bytes = BytesIO()
                 pickle.dump(model, model_bytes)
                 model_bytes.seek(0)
                 model_data = base64.b64encode(model_bytes.read()).decode('utf-8')
                 
-                # 同时序列化模型信息
                 info_bytes = BytesIO()
                 pickle.dump(model_info, info_bytes)
                 info_bytes.seek(0)
                 model_info_data = base64.b64encode(info_bytes.read()).decode('utf-8')
             
-            # 保存到内存
             self.trained_models[model_name] = model
             self.model_metrics[model_name] = model_info
             
-            # 构造返回结果
             result = {
                 'success': True,
                 'message': f'模型 {model_name} 训练成功',
@@ -192,14 +139,11 @@ class ModelTrainer:
                 'model_info': model_info
             }
             
-            # 如果需要返回模型数据，添加到结果中
             if return_model:
                 result['model_data'] = model_data
                 result['model_info_data'] = model_info_data
-                # 添加虚拟的model_path字段以保持与Go后端的兼容性
                 result['model_path'] = f"memory://{model_name}"
             
-            # 如果仍然需要保存到服务器（向后兼容）
             if not return_model:
                 model_path = os.path.join(self.model_dir, f"{model_name}.pkl")
                 with open(model_path, 'wb') as f:
@@ -222,18 +166,6 @@ class ModelTrainer:
             }
     
     def _tune_hyperparameters(self, model, model_type: str, X: pd.DataFrame, y: pd.Series):
-        """
-        调整模型超参数
-        
-        Args:
-            model: 模型实例
-            model_type: 模型类型
-            X: 特征DataFrame
-            y: 目标Series
-            
-        Returns:
-            调参后的模型
-        """
         param_grids = {
             "ridge": {'alpha': [0.1, 1.0, 10.0, 100.0]},
             "lasso": {'alpha': [0.1, 1.0, 10.0, 100.0]},
@@ -263,15 +195,6 @@ class ModelTrainer:
         return model
     
     def get_model_metrics(self, model_name: str) -> Dict[str, Any]:
-        """
-        获取模型评估指标
-        
-        Args:
-            model_name: 模型名称
-            
-        Returns:
-            模型指标字典
-        """
         if model_name not in self.model_metrics:
             return {
                 'success': False,
@@ -284,19 +207,7 @@ class ModelTrainer:
         }
     
     def compare_models(self, X: pd.DataFrame, y: pd.Series, test_size: float = 0.2) -> Dict[str, Any]:
-        """
-        比较所有模型的性能
-        
-        Args:
-            X: 特征DataFrame
-            y: 目标Series
-            test_size: 测试集比例
-            
-        Returns:
-            模型比较结果
-        """
         try:
-            # 分割数据集
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=42
             )
@@ -305,13 +216,10 @@ class ModelTrainer:
             
             for model_name, model in self.models.items():
                 try:
-                    # 训练模型
                     model.fit(X_train, y_train)
                     
-                    # 预测
                     y_pred = model.predict(X_test)
                     
-                    # 计算指标
                     metrics = {
                         'r2': r2_score(y_test, y_pred),
                         'rmse': np.sqrt(mean_squared_error(y_test, y_pred)),
@@ -326,7 +234,6 @@ class ModelTrainer:
                         'error': str(e)
                     }
             
-            # 按R2分数排序
             sorted_results = sorted(
                 comparison_results.items(),
                 key=lambda x: x[1].get('r2', float('-inf')),
@@ -348,15 +255,6 @@ class ModelTrainer:
             }
     
     def load_model(self, model_path: str) -> Any:
-        """
-        加载模型
-        
-        Args:
-            model_path: 模型文件路径
-            
-        Returns:
-            加载的模型
-        """
         try:
             with open(model_path, 'rb') as f:
                 model = pickle.load(f)
@@ -366,15 +264,6 @@ class ModelTrainer:
             return None
     
     def load_model_info(self, model_name: str) -> Optional[Dict[str, Any]]:
-        """
-        加载模型信息
-        
-        Args:
-            model_name: 模型名称
-            
-        Returns:
-            模型信息字典
-        """
         info_path = os.path.join(self.model_dir, f"{model_name}_info.json")
         try:
             with open(info_path, 'r') as f:

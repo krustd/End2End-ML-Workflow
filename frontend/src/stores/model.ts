@@ -16,14 +16,13 @@ export interface ModelInfo {
     test_metrics: ModelMetrics
     cv_scores?: ModelMetrics
     model_path?: string
-    model_data?: string // 新增：模型数据
-    model_info_data?: string // 新增：模型信息数据
-    feature_names?: string[] // 新增：特征名称
-    target_name?: string // 新增：目标列名称
+    model_data?: string
+    model_info_data?: string
+    feature_names?: string[]
+    target_name?: string
 }
 
 export const useModelStore = defineStore('model', () => {
-    // 状态
     const availableModels = ref<string[]>([])
     const trainedModels = ref<string[]>([])
     const currentModel = ref<ModelInfo | null>(null)
@@ -33,7 +32,6 @@ export const useModelStore = defineStore('model', () => {
     const training = ref(false)
     const error = ref<string | null>(null)
 
-    // 计算属性
     const hasTrainedModel = computed(() => {
         return currentModel.value !== null
     })
@@ -52,7 +50,6 @@ export const useModelStore = defineStore('model', () => {
         }))
     })
 
-    // 辅助函数
     function getModelDisplayName(modelType: string): string {
         const modelNames: Record<string, string> = {
             'linear_regression': '线性回归',
@@ -68,7 +65,6 @@ export const useModelStore = defineStore('model', () => {
         return modelNames[modelType] || modelType
     }
 
-    // 方法
     async function fetchAvailableModels() {
         loading.value = true
         error.value = null
@@ -91,7 +87,6 @@ export const useModelStore = defineStore('model', () => {
         error.value = null
 
         try {
-            // 从本地存储获取已训练的模型
             const modelNames = ModelStorage.getModelNames()
             trainedModels.value = modelNames
         } catch (err: any) {
@@ -114,7 +109,6 @@ export const useModelStore = defineStore('model', () => {
         try {
             const response = await modelApi.trainModel(params) as any
             if (response.success) {
-                // 保存模型到本地存储
                 const modelInfo: StorageModelInfo = {
                     model_name: response.model_name,
                     model_type: response.model_type,
@@ -127,12 +121,10 @@ export const useModelStore = defineStore('model', () => {
                     created_at: new Date().toISOString()
                 }
 
-                // 保存模型数据和模型信息
                 if (response.model_data) {
                     ModelStorage.saveModel(response.model_data, modelInfo, response.model_info_data)
                 }
 
-                // 设置当前模型
                 currentModel.value = {
                     model_name: response.model_name,
                     model_type: response.model_type,
@@ -144,7 +136,6 @@ export const useModelStore = defineStore('model', () => {
                     target_name: response.target_name
                 }
 
-                // 更新已训练模型列表
                 if (!trainedModels.value.includes(response.model_name)) {
                     trainedModels.value.push(response.model_name)
                 }

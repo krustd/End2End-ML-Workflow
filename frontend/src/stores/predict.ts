@@ -7,13 +7,11 @@ import type { PredictionResult, BatchPredictionResult } from '@/utils/localPredi
 import ModelStorage from '@/utils/modelStorage'
 
 export const usePredictStore = defineStore('predict', () => {
-    // 状态
     const predictionResult = ref<PredictionResult | null>(null)
     const batchPredictionResult = ref<BatchPredictionResult | null>(null)
     const loading = ref(false)
     const error = ref<string | null>(null)
 
-    // 方法
     async function predict(params: {
         data: Record<string, any>
         model_name?: string
@@ -22,7 +20,6 @@ export const usePredictStore = defineStore('predict', () => {
         error.value = null
 
         try {
-            // 获取本地存储的模型数据
             let modelData = null
             let modelInfoData = null
             if (params.model_name) {
@@ -33,7 +30,6 @@ export const usePredictStore = defineStore('predict', () => {
                 }
             }
 
-            // 发送预测请求，包含模型数据和模型信息数据
             const response = await predictApi.predict({
                 ...params,
                 model_data: modelData || undefined,
@@ -61,7 +57,6 @@ export const usePredictStore = defineStore('predict', () => {
         error.value = null
 
         try {
-            // 获取本地存储的模型数据
             let modelData = null
             let modelInfoData = null
             if (modelName) {
@@ -72,7 +67,6 @@ export const usePredictStore = defineStore('predict', () => {
                 }
             }
 
-            // 发送批量预测请求，包含模型数据和模型信息数据
             const response = await predictApi.batchPredict(data, modelName, modelData || undefined, modelInfoData || undefined) as any
 
             if (response.success) {
@@ -100,7 +94,6 @@ export const usePredictStore = defineStore('predict', () => {
         error.value = null
 
         try {
-            // 获取本地存储的模型数据
             let modelData = null
             let modelInfoData = null
             if (modelName) {
@@ -113,7 +106,6 @@ export const usePredictStore = defineStore('predict', () => {
 
             const response = await predictApi.exportPredictions(data, format, modelName, modelData || undefined, modelInfoData || undefined) as any
 
-            // 创建下载链接
             const blob = new Blob([response])
             const url = window.URL.createObjectURL(blob)
             const link = document.createElement('a')

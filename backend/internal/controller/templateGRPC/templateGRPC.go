@@ -16,7 +16,6 @@ func Register(s *grpcx.GrpcServer) {
 }
 
 func (*Controller) Say(ctx context.Context, req *v1.SayReq) (res *v1.SayRes, err error) {
-	// return nil, gerror.NewCode(gcode.CodeNotImplemented)
 	return &v1.SayRes{
 		Content: "Hello " + req.Content,
 	}, err

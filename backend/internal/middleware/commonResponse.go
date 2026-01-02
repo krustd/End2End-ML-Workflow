@@ -56,7 +56,6 @@ func ResponseHandler(r *ghttp.Request) {
 			g.Log().Error(r.Context(), err)
 			msg = "系统服务异常，请稍后重试"
 		} else {
-			// 记录错误日志，但不返回详细错误消息给前端
 			g.Log().Errorf(r.Context(), "Error: %v", err)
 			msg = err.Error()
 		}

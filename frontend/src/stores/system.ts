@@ -3,12 +3,13 @@ import { defineStore } from 'pinia'
 import { systemApi } from '@/services/api'
 import { useSettingsStore } from './settings'
 import { useDataStore } from './data'
+import { useModelStore } from './model'
 
 export const useSystemStore = defineStore('system', () => {
     const settingsStore = useSettingsStore()
     const dataStore = useDataStore()
+    const modelStore = useModelStore()
 
-    // 状态
     const systemStatus = ref({
         data_uploaded: false,
         model_trained: false,
@@ -20,22 +21,21 @@ export const useSystemStore = defineStore('system', () => {
     const loading = ref(false)
     const error = ref<string | null>(null)
 
-    // 计算属性
     const currentStepIndex = computed(() => {
         const steps = ['数据上传', '模型训练', '预测']
         return steps.indexOf(systemStatus.value.current_step)
     })
 
     const canProceedToModelTraining = computed(() => {
-        // 不仅检查data_uploaded状态，还要检查数据存储中是否真的有有效数据
         return systemStatus.value.data_uploaded && dataStore.hasData
     })
 
     const canProceedToPrediction = computed(() => {
-        return systemStatus.value.data_uploaded && systemStatus.value.model_trained && dataStore.hasData
+        return systemStatus.value.data_uploaded &&
+            systemStatus.value.model_trained &&
+            dataStore.hasData &&
+            modelStore.currentModel !== null
     })
-
-    // 方法
     async function fetchSystemStatus() {
         loading.value = true
         error.value = null
@@ -43,11 +43,15 @@ export const useSystemStore = defineStore('system', () => {
         try {
             const response = await systemApi.getSystemStatus() as any
             if (response.success) {
-                systemStatus.value = { ...systemStatus.value, ...response.status }
+                systemStatus.value = {
+                    ...systemStatus.value,
+                    ...response.status,
+                    model_trained: systemStatus.value.model_trained && response.status.model_trained
+                }
             }
         } catch (err) {
             error.value = '获取系统状态失败'
-            console.error('获取系统状态失败:', err)
+            console.error(err)
         } finally {
             loading.value = false
         }

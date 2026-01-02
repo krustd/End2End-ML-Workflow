@@ -1,5 +1,7 @@
 # 机器学习数据分析与统计系统
 
+![Icon](../Icon.png)
+
 这是一个基于机器学习的数据分析与统计系统，提供了完整的数据处理、模型训练和预测功能，以及RESTful API接口供后端调用。
 
 ## 功能特点
@@ -22,6 +24,11 @@ ml_model/
 ├── run.py                   # 启动脚本
 ├── pyproject.toml          # 项目依赖配置
 ├── README.md               # 项目说明
+├── .gitignore              # Git忽略文件
+├── uv.lock                 # UV依赖锁定文件
+├── test_api.py             # API测试文件
+├── test_fix.py             # 修复测试文件
+├── test_prediction.py      # 预测测试文件
 ├── data/                   # 数据处理模块
 │   ├── __init__.py
 │   └── data_processor.py   # 数据处理器
@@ -42,7 +49,12 @@ ml_model/
 
 ## 安装和运行
 
-### 1. 安装依赖
+### 1. 环境要求
+
+- Python 3.8+（推荐使用Python 3.13）
+- 推荐使用虚拟环境管理依赖
+
+### 2. 安装依赖
 
 使用uv（推荐）：
 ```bash
@@ -53,20 +65,20 @@ uv sync
 或使用pip：
 ```bash
 cd ml_model
-pip install -r requirements.txt  # 如果存在
+pip install -e .
 ```
 
-### 2. 运行API服务
+### 3. 运行API服务
 
 ```bash
 # 使用默认配置运行
-python ml_model/run.py
+python run.py
 
 # 自定义主机和端口
-python ml_model/run.py --host 127.0.0.1 --port 8080
+python run.py --host 127.0.0.1 --port 8080
 
 # 启用调试模式
-python ml_model/run.py --debug
+python run.py --debug
 ```
 
 服务启动后，可以通过以下地址访问：
@@ -77,30 +89,30 @@ python ml_model/run.py --debug
 
 ### 系统状态
 
-- `GET /system/status` - 获取系统状态
 - `GET /` - 获取API基本信息
+- `GET /system/status` - 获取系统状态
 
 ### 数据管理
 
 - `POST /data/upload` - 上传CSV数据文件
 - `GET /data/info` - 获取数据信息
-- `GET /data/preview` - 获取数据预览
-- `POST /data/process` - 处理数据
+- `GET /data/preview` - 获取数据预览（可指定行数）
+- `POST /data/process` - 处理数据（支持缺失值处理和目标列设置）
 
 ### 模型管理
 
 - `GET /model/available` - 获取可用的模型类型
 - `GET /model/trained` - 获取已训练的模型
-- `POST /model/train` - 训练模型
+- `POST /model/train` - 训练模型（支持模型类型、目标列、测试集比例和超参数调优）
 - `GET /model/metrics/{model_name}` - 获取模型评估指标
 - `POST /model/compare` - 比较所有模型的性能
-- `GET /model/info` - 获取模型信息
+- `GET /model/info` - 获取模型信息（可指定模型名称）
 
 ### 预测服务
 
-- `POST /predict` - 单条预测
-- `POST /predict/batch` - 批量预测
-- `POST /predict/export` - 导出预测结果
+- `POST /predict` - 单条预测（支持模型数据、模型名称和模型信息）
+- `POST /predict/batch` - 批量预测（支持模型数据、模型名称和模型信息）
+- `POST /predict/export` - 导出预测结果（支持CSV、Excel和JSON格式）
 
 ## 使用示例
 
@@ -118,7 +130,21 @@ with open('data.csv', 'rb') as f:
 print(response.json())
 ```
 
-### 2. 训练模型
+### 2. 处理数据
+
+```python
+# 处理数据（删除缺失值）
+response = requests.post(
+    'http://localhost:8000/data/process',
+    json={
+        'handle_missing': 'drop',
+        'target_column': 'price'
+    }
+)
+print(response.json())
+```
+
+### 3. 训练模型
 
 ```python
 # 训练线性回归模型
@@ -128,13 +154,14 @@ response = requests.post(
         'model_type': 'linear_regression',
         'target_column': 'price',
         'test_size': 0.2,
-        'tune_hyperparameters': True
+        'tune_hyperparameters': True,
+        'return_model': True
     }
 )
 print(response.json())
 ```
 
-### 3. 进行预测
+### 4. 进行预测
 
 ```python
 # 单条预测
@@ -145,7 +172,8 @@ response = requests.post(
             'feature1': 100,
             'feature2': 3,
             'feature3': 2
-        }
+        },
+        'model_name': 'linear_regression'
     }
 )
 print(response.json())
@@ -153,15 +181,39 @@ print(response.json())
 # 批量预测
 response = requests.post(
     'http://localhost:8000/predict/batch',
-    json=[
-        {'feature1': 100, 'feature2': 3, 'feature3': 2},
-        {'feature1': 150, 'feature2': 4, 'feature3': 3}
-    ]
+    json={
+        'data': [
+            {'feature1': 100, 'feature2': 3, 'feature3': 2},
+            {'feature1': 150, 'feature2': 4, 'feature3': 3}
+        ],
+        'model_name': 'linear_regression'
+    }
 )
 print(response.json())
 ```
 
-### 4. 模型比较
+### 5. 导出预测结果
+
+```python
+# 导出预测结果为CSV
+response = requests.post(
+    'http://localhost:8000/predict/export',
+    json={
+        'data': [
+            {'feature1': 100, 'feature2': 3, 'feature3': 2},
+            {'feature1': 150, 'feature2': 4, 'feature3': 3}
+        ],
+        'format': 'csv',
+        'model_name': 'linear_regression'
+    }
+)
+
+# 保存文件
+with open('predictions.csv', 'wb') as f:
+    f.write(response.content)
+```
+
+### 6. 模型比较
 
 ```python
 # 比较所有模型性能
@@ -186,7 +238,7 @@ print(response.json())
 
 ## 配置说明
 
-配置文件位于 `ml_model/config/settings.py`，包含以下配置项：
+配置文件位于 `config/settings.py`，包含以下配置项：
 
 - `MODEL_CONFIG`: 模型相关配置
 - `DATA_CONFIG`: 数据处理相关配置
@@ -253,9 +305,19 @@ print(response.json())
 5. 预测结果仅供参考，不构成决策建议
 6. 大数据集处理可能需要较长时间，建议适当调整批处理大小
 
+## 技术栈
+
+- **后端框架**: FastAPI
+- **机器学习**: Scikit-learn
+- **数据处理**: Pandas, NumPy
+- **数据可视化**: Matplotlib, Seaborn
+- **Web服务**: Uvicorn
+- **配置管理**: Pydantic
+- **依赖管理**: UV
+
 ## 系统要求
 
-- Python 3.8+
+- Python 3.8+（推荐使用Python 3.13）
 - 推荐使用虚拟环境管理依赖
 
 ## 许可证

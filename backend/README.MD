@@ -1,5 +1,7 @@
 # 机器学习数据分析与统计系统后端
 
+![Icon](../Icon.png)
+
 ![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org)
 ![GoFrame](https://img.shields.io/badge/GoFrame-v2.9.7-orange.svg)](https://goframe.org)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -110,6 +112,10 @@
 - `POST /predict/batch` - 批量预测
 - `POST /predict/export` - 导出预测结果
 
+### Hello API
+
+- `GET /hello` - Hello World示例接口
+
 ### 系统管理API
 
 - `GET /` - 根路径，返回API信息
@@ -177,7 +183,6 @@ logger:
 
 - 遵循Go官方代码规范
 - 使用GoFrame推荐的项目结构
-- 所有公共接口必须有注释
 - 提交前运行`go fmt`和`go vet`
 - 单元测试覆盖率不低于80%
 

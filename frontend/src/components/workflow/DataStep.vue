@@ -25,7 +25,6 @@ const handleMissingOptions = [
 const selectedTargetColumn = ref('')
 const selectedHandleMissing = ref('drop')
 
-// 监听目标列变化，同步到数据存储
 watch(selectedTargetColumn, (newValue) => {
   if (newValue) {
     dataStore.setTargetColumn(newValue)
@@ -39,14 +38,12 @@ const numericColumnOptions = computed(() => dataStore.numericColumnOptions)
 const loading = computed(() => dataStore.loading)
 
 onMounted(() => {
-  // 使用设置中的默认分页大小
   previewRows.value = settingsStore.tablePageSize
   
   if (hasData.value) {
     dataStore.fetchDataInfo()
     dataStore.fetchDataPreview(previewRows.value)
     
-    // 如果数据存储中已有目标列，使用它
     if (dataStore.targetColumn) {
       selectedTargetColumn.value = dataStore.targetColumn
     }
@@ -54,7 +51,6 @@ onMounted(() => {
 })
 
 const handleFileChange = (file: any) => {
-  // Element Plus的文件对象结构：file.raw是实际的File对象
   const actualFile = file.raw || file
   const isCSV = actualFile.type === 'text/csv' || file.name.endsWith('.csv')
   if (!isCSV) {
@@ -93,16 +89,13 @@ const handleSimpleUpload = async () => {
     console.log('开始上传文件:', selectedFile.value)
     await dataStore.uploadData(selectedFile.value)
     
-    // 只有在上传成功后才更新系统状态
     systemStore.updateSystemStatus({
       data_uploaded: true,
-      current_step: '模型训练'
+      current_step: '数据上传'
     })
     
-    // 获取数据预览
     await dataStore.fetchDataPreview(previewRows.value)
     
-    // 清除选择
     selectedFile.value = null
     if (fileInput.value) {
       fileInput.value.value = ''
@@ -111,7 +104,6 @@ const handleSimpleUpload = async () => {
     console.error('上传失败:', error)
     ElMessage.error('文件上传失败: ' + (error.message || '未知错误'))
     
-    // 上传失败时确保系统状态正确
     systemStore.updateSystemStatus({
       data_uploaded: false,
       current_step: '数据上传'
@@ -122,7 +114,6 @@ const handleSimpleUpload = async () => {
 const clearUploadedFile = () => {
   dataStore.clearData()
   
-  // 清除文件时也要更新系统状态
   systemStore.updateSystemStatus({
     data_uploaded: false,
     current_step: '数据上传'
@@ -142,7 +133,6 @@ const handleProcessData = async () => {
       target_column: selectedTargetColumn.value || undefined
     })
     
-    // 更新数据信息和目标列
     await dataStore.fetchDataInfo()
     if (selectedTargetColumn.value) {
       dataStore.setTargetColumn(selectedTargetColumn.value)
@@ -153,7 +143,6 @@ const handleProcessData = async () => {
 }
 
 const handlePreviewRowsChange = async () => {
-  // 更新设置中的分页大小
   settingsStore.updateSettings({ tablePageSize: previewRows.value })
   
   if (hasData.value) {
@@ -175,7 +164,6 @@ const formatFileSize = (size: number) => {
 <template>
   <div class="data-step">
     <ElRow :gutter="20">
-      <!-- 数据上传区域 -->
       <ElCol :span="24">
         <ElCard class="upload-card">
           <template #header>
@@ -185,7 +173,6 @@ const formatFileSize = (size: number) => {
             </div>
           </template>
           
-          <!-- 使用朴素HTML表单替换Element Plus上传组件 -->
           <div class="simple-upload-form">
             <form @submit.prevent="handleSimpleUpload" enctype="multipart/form-data">
               <div class="form-group">
@@ -230,7 +217,6 @@ const formatFileSize = (size: number) => {
       </ElCol>
     </ElRow>
 
-    <!-- 数据信息区域 -->
     <ElRow v-if="hasData && dataInfo" :gutter="20" style="margin-top: 20px;">
       <ElCol :span="24">
         <ElCard class="info-card">
@@ -261,7 +247,6 @@ const formatFileSize = (size: number) => {
       </ElCol>
     </ElRow>
 
-    <!-- 数据预览区域 -->
     <ElRow v-if="hasData" :gutter="20" style="margin-top: 20px;">
       <ElCol :span="24">
         <ElCard class="preview-card">
@@ -293,7 +278,6 @@ const formatFileSize = (size: number) => {
       </ElCol>
     </ElRow>
 
-    <!-- 数据处理区域 -->
     <ElRow v-if="hasData && dataInfo" :gutter="20" style="margin-top: 20px;">
       <ElCol :span="24">
         <ElCard class="process-card">
@@ -350,7 +334,6 @@ const formatFileSize = (size: number) => {
       </ElCol>
     </ElRow>
 
-    <!-- 提示信息 -->
     <ElRow v-if="!hasData" :gutter="20" style="margin-top: 20px;">
       <ElCol :span="24">
         <ElAlert
@@ -501,7 +484,6 @@ const formatFileSize = (size: number) => {
   width: 100%;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .upload-actions {
     margin-top: 15px;

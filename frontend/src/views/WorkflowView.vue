@@ -4,7 +4,6 @@ import { ElTabs, ElTabPane, ElCard, ElSteps, ElStep, ElAlert } from 'element-plu
 import DataStep from '@/components/workflow/DataStep.vue'
 import ModelStep from '@/components/workflow/ModelStep.vue'
 import PredictStep from '@/components/workflow/PredictStep.vue'
-import ModelManager from '@/components/workflow/ModelManager.vue'
 import { useSystemStore } from '@/stores/system'
 
 const systemStore = useSystemStore()
@@ -13,6 +12,34 @@ const activeTab = ref('data')
 onMounted(() => {
   systemStore.fetchSystemStatus()
 })
+
+const handleTabClick = (tab: any) => {
+  if (tab.props.name === 'model' && !systemStore.canProceedToModelTraining) {
+    activeTab.value = 'data'
+    return false
+  }
+  
+  if (tab.props.name === 'predict' && !systemStore.canProceedToPrediction) {
+    if (systemStore.canProceedToModelTraining) {
+      activeTab.value = 'model'
+    } else {
+      activeTab.value = 'data'
+    }
+    return false
+  }
+  
+  const stepMap: Record<string, string> = {
+    'data': '数据上传',
+    'model': '模型训练',
+    'predict': '预测'
+  }
+  
+  if (stepMap[tab.props.name]) {
+    systemStore.updateSystemStatus({
+      current_step: stepMap[tab.props.name]
+    })
+  }
+}
 </script>
 
 <template>
@@ -41,7 +68,7 @@ onMounted(() => {
         class="workflow-alert"
       />
 
-      <ElTabs v-model="activeTab" class="workflow-tabs">
+      <ElTabs v-model="activeTab" class="workflow-tabs" @tab-click="handleTabClick">
         <ElTabPane label="Step1 数据" name="data">
           <DataStep />
         </ElTabPane>
@@ -50,9 +77,6 @@ onMounted(() => {
         </ElTabPane>
         <ElTabPane label="Step3 预测" name="predict" :disabled="!systemStore.canProceedToPrediction">
           <PredictStep />
-        </ElTabPane>
-        <ElTabPane label="模型管理" name="model-manager">
-          <ModelManager />
         </ElTabPane>
       </ElTabs>
     </ElCard>
@@ -108,7 +132,6 @@ onMounted(() => {
   font-size: 14px;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .workflow-container {
     padding: 0 10px;

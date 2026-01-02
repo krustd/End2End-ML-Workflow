@@ -20,7 +20,6 @@ onMounted(async () => {
   await systemStore.fetchSystemStatus()
   await modelStore.fetchAvailableModels()
   
-  // 设置当前选择的模型
   selectedModel.value = settingsStore.defaultModel
 })
 
@@ -99,7 +98,6 @@ const getModelDisplayName = (modelType: string) => {
 <template>
   <div class="settings-container">
     <ElRow :gutter="20">
-      <!-- 当前系统状态 -->
       <ElCol :span="24">
         <ElCard class="status-card">
           <template #header>
@@ -162,7 +160,6 @@ const getModelDisplayName = (modelType: string) => {
         </ElCard>
       </ElCol>
       
-      <!-- 默认行为说明 -->
       <ElCol :span="24" style="margin-top: 20px;">
         <ElCard class="behavior-card">
           <template #header>
@@ -210,7 +207,6 @@ const getModelDisplayName = (modelType: string) => {
         </ElCard>
       </ElCol>
       
-      <!-- 显示与体验设置 -->
       <ElCol :span="24" style="margin-top: 20px;">
         <ElCard class="display-card">
           <template #header>
@@ -259,7 +255,6 @@ const getModelDisplayName = (modelType: string) => {
         </ElCard>
       </ElCol>
       
-      <!-- 关于本系统 -->
       <ElCol :span="24" style="margin-top: 20px;">
         <ElCard class="about-card">
           <template #header>
@@ -358,7 +353,6 @@ const getModelDisplayName = (modelType: string) => {
   font-size: 12px;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .settings-container {
     padding: 0 10px;

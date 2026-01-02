@@ -1,8 +1,3 @@
-/**
- * 模型存储工具类
- * 负责在前端浏览器中存储和管理机器学习模型
- */
-
 import { ElMessage } from 'element-plus'
 
 export interface ModelInfo {
@@ -18,26 +13,18 @@ export interface ModelInfo {
 }
 
 export interface StoredModel {
-    model_data: string // base64编码的模型数据
+    model_data: string
     model_info: ModelInfo
-    model_info_data?: string // base64编码的模型信息数据
+    model_info_data?: string
 }
 
 class ModelStorageClass {
     private readonly STORAGE_KEY = 'ml_models'
 
-    /**
-     * 保存模型到本地存储
-     * @param modelData base64编码的模型数据
-     * @param modelInfo 模型信息
-     * @param modelInfoData base64编码的模型信息数据
-     */
     saveModel(modelData: string, modelInfo: ModelInfo, modelInfoData?: string): boolean {
         try {
-            // 获取当前存储的模型
             const storedModels = this.getAllModels()
 
-            // 添加新模型或更新现有模型
             const storedModel: StoredModel = {
                 model_data: modelData,
                 model_info: {
@@ -46,14 +33,12 @@ class ModelStorageClass {
                 }
             }
 
-            // 如果提供了模型信息数据，添加到存储中
             if (modelInfoData) {
                 storedModel.model_info_data = modelInfoData
             }
 
             storedModels[modelInfo.model_name] = storedModel
 
-            // 保存到localStorage
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(storedModels))
 
             ElMessage.success(`模型 ${modelInfo.model_name} 已保存到本地`)
@@ -65,9 +50,6 @@ class ModelStorageClass {
         }
     }
 
-    /**
-     * 获取所有存储的模型
-     */
     getAllModels(): Record<string, StoredModel> {
         try {
             const modelsJson = localStorage.getItem(this.STORAGE_KEY)
@@ -78,10 +60,6 @@ class ModelStorageClass {
         }
     }
 
-    /**
-     * 获取指定模型
-     * @param modelName 模型名称
-     */
     getModel(modelName: string): StoredModel | null {
         try {
             const models = this.getAllModels()
@@ -92,10 +70,6 @@ class ModelStorageClass {
         }
     }
 
-    /**
-     * 删除指定模型
-     * @param modelName 模型名称
-     */
     deleteModel(modelName: string): boolean {
         try {
             const models = this.getAllModels()
@@ -117,9 +91,6 @@ class ModelStorageClass {
         }
     }
 
-    /**
-     * 清空所有模型
-     */
     clearAllModels(): boolean {
         try {
             localStorage.removeItem(this.STORAGE_KEY)
@@ -132,9 +103,6 @@ class ModelStorageClass {
         }
     }
 
-    /**
-     * 获取模型名称列表
-     */
     getModelNames(): string[] {
         try {
             const models = this.getAllModels()
@@ -145,9 +113,6 @@ class ModelStorageClass {
         }
     }
 
-    /**
-     * 获取模型信息列表（不包含模型数据）
-     */
     getModelInfos(): ModelInfo[] {
         try {
             const models = this.getAllModels()
@@ -158,19 +123,11 @@ class ModelStorageClass {
         }
     }
 
-    /**
-     * 检查模型是否存在
-     * @param modelName 模型名称
-     */
     modelExists(modelName: string): boolean {
         const models = this.getAllModels()
         return modelName in models
     }
 
-    /**
-     * 导出模型为JSON文件
-     * @param modelName 模型名称
-     */
     exportModel(modelName: string): boolean {
         try {
             const model = this.getModel(modelName)
@@ -179,7 +136,6 @@ class ModelStorageClass {
                 return false
             }
 
-            // 创建下载链接
             const dataStr = JSON.stringify(model, null, 2)
             const dataBlob = new Blob([dataStr], { type: 'application/json' })
             const url = URL.createObjectURL(dataBlob)
@@ -201,10 +157,6 @@ class ModelStorageClass {
         }
     }
 
-    /**
-     * 从JSON文件导入模型
-     * @param file JSON文件
-     */
     async importModel(file: File): Promise<boolean> {
         try {
             const text = await file.text()
@@ -222,15 +174,11 @@ class ModelStorageClass {
         }
     }
 
-    /**
-     * 获取存储使用情况
-     */
     getStorageUsage(): { used: number, total: number, percentage: number } {
         try {
             const modelsJson = localStorage.getItem(this.STORAGE_KEY)
             const used = modelsJson ? new Blob([modelsJson]).size : 0
-            // 估算localStorage总容量（通常为5-10MB，这里保守估计为5MB）
-            const total = 5 * 1024 * 1024 // 5MB
+            const total = 5 * 1024 * 1024
             const percentage = Math.round((used / total) * 100)
 
             return { used, total, percentage }
@@ -241,6 +189,5 @@ class ModelStorageClass {
     }
 }
 
-// 创建单例实例
 const ModelStorage = new ModelStorageClass()
 export default ModelStorage

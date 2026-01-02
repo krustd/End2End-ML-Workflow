@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-测试修复后的预测功能
-"""
 
 import requests
 import json
@@ -9,24 +6,19 @@ import pandas as pd
 import numpy as np
 from io import StringIO
 
-# API基础URL
 BASE_URL = "http://localhost:8000"
 
 def test_prediction_workflow():
-    """测试完整的预测工作流程"""
     print("开始测试预测功能修复...")
     
-    # 1. 创建测试数据
     print("\n1. 创建测试数据...")
     np.random.seed(42)
     data_size = 100
     feature1 = np.random.normal(0, 1, data_size)
     feature2 = np.random.normal(0, 1, data_size)
     feature3 = np.random.normal(0, 1, data_size)
-    # 创建目标变量，与特征1和特征2相关
     target = 2 * feature1 + 3 * feature2 + np.random.normal(0, 0.5, data_size)
     
-    # 创建DataFrame
     df = pd.DataFrame({
         'feature1': feature1,
         'feature2': feature2,
@@ -34,10 +26,8 @@ def test_prediction_workflow():
         'target': target
     })
     
-    # 保存为CSV
     csv_data = df.to_csv(index=False)
     
-    # 2. 上传数据
     print("\n2. 上传数据...")
     files = {'file': ('test_data.csv', csv_data, 'text/csv')}
     response = requests.post(f"{BASE_URL}/data/upload", files=files)
@@ -49,7 +39,6 @@ def test_prediction_workflow():
     
     print("数据上传成功")
     
-    # 3. 处理数据
     print("\n3. 处理数据...")
     process_data = {
         "handle_missing": "drop",
@@ -64,7 +53,6 @@ def test_prediction_workflow():
     
     print("数据处理成功")
     
-    # 4. 训练模型
     print("\n4. 训练模型...")
     train_data = {
         "model_type": "linear_regression",
@@ -88,7 +76,6 @@ def test_prediction_workflow():
     print(f"模型数据长度: {len(model_data) if model_data else 0}")
     print(f"模型信息数据长度: {len(model_info_data) if model_info_data else 0}")
     
-    # 5. 单个预测
     print("\n5. 测试单个预测...")
     predict_data = {
         "data": {
@@ -110,7 +97,6 @@ def test_prediction_workflow():
     prediction = result.get('prediction')
     print(f"单个预测成功: {prediction}")
     
-    # 6. 批量预测
     print("\n6. 测试批量预测...")
     batch_predict_data = {
         "data": [
@@ -132,7 +118,6 @@ def test_prediction_workflow():
     predictions = result.get('predictions')
     print(f"批量预测成功: {predictions}")
     
-    # 7. 导出预测结果
     print("\n7. 测试导出预测结果...")
     export_data = {
         "data": [
@@ -153,7 +138,6 @@ def test_prediction_workflow():
     
     print("导出预测结果成功")
     
-    # 8. 测试不使用模型信息数据的预测（应该失败）
     print("\n8. 测试不使用模型信息数据的预测...")
     predict_data_no_info = {
         "data": {
@@ -163,12 +147,10 @@ def test_prediction_workflow():
         },
         "model_name": model_name,
         "model_data": model_data
-        # 不包含 model_info_data
     }
     response = requests.post(f"{BASE_URL}/predict", json=predict_data_no_info)
     result = response.json()
     
-    # 这个预测可能会失败，因为缺少模型信息数据
     if not result.get('success'):
         print(f"不使用模型信息数据的预测失败（预期）: {result.get('message')}")
     else:

@@ -16,14 +16,12 @@ export interface DataInfo {
 }
 
 export const useDataStore = defineStore('data', () => {
-    // 状态
     const dataInfo = ref<DataInfo | null>(null)
     const dataPreview = ref<any[]>([])
     const loading = ref(false)
     const error = ref<string | null>(null)
     const targetColumn = ref<string>('')
 
-    // 计算属性
     const hasData = computed(() => {
         return dataInfo.value !== null && dataInfo.value.file_name !== ''
     })
@@ -44,20 +42,12 @@ export const useDataStore = defineStore('data', () => {
         }))
     })
 
-    // 方法
     async function uploadData(file: File) {
         loading.value = true
         error.value = null
 
-        // 添加详细的日志
-        console.log('uploadData - 开始上传文件')
-        console.log('uploadData - 文件参数:', file)
-        console.log('uploadData - 文件类型:', typeof file)
-        console.log('uploadData - 文件是否为File对象:', file instanceof File)
-
         try {
             const response = await dataApi.uploadData(file) as any
-            console.log('uploadData - API响应:', response)
 
             if (response.success) {
                 dataInfo.value = response.data_info
@@ -72,7 +62,6 @@ export const useDataStore = defineStore('data', () => {
             error.value = err.message || '数据上传失败'
             ElMessage.error(error.value || '数据上传失败')
 
-            // 上传失败时清除数据状态，确保hasData返回false
             dataInfo.value = null
             dataPreview.value = []
 
@@ -149,7 +138,6 @@ export const useDataStore = defineStore('data', () => {
 
     function setTargetColumn(column: string) {
         targetColumn.value = column
-        // 同时更新dataInfo中的target_column
         if (dataInfo.value) {
             dataInfo.value.target_column = column
         }

@@ -17,7 +17,6 @@ const handleMenuSelect = (index: string) => {
 }
 
 onMounted(() => {
-  // 确保主题颜色在应用启动时应用
   settingsStore.applyThemeColor()
 })
 </script>
@@ -37,6 +36,7 @@ onMounted(() => {
           class="app-menu"
         >
           <ElMenuItem index="workflow">操作流程</ElMenuItem>
+          <ElMenuItem index="models">模型管理</ElMenuItem>
           <ElMenuItem index="instructions">操作说明</ElMenuItem>
           <ElMenuItem index="settings">系统设置</ElMenuItem>
         </ElMenu>
@@ -95,21 +95,44 @@ onMounted(() => {
 }
 
 .app-menu .el-menu-item {
-  color: white;
+  color: rgba(255, 255, 255, 0.9);
   border-bottom: 2px solid transparent;
   font-size: 16px;
   padding: 0 15px;
+  position: relative;
+  transition: all 0.3s ease;
 }
 
 .app-menu .el-menu-item:hover {
   background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.app-menu .el-menu-item:not(.is-active):hover::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 2px;
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 2px;
 }
 
 .app-menu .el-menu-item.is-active {
-  background-color: rgba(255, 255, 255, 0.15);
-  border-bottom: 3px solid #ffffff;
-  color: #ffffff;
-  font-weight: 500;
+  background-color: #ffffff;
+  color: v-bind(themeColor);
+  font-weight: 700;
+  border-radius: 4px;
+  border-bottom: none;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.app-menu .el-menu-item.is-active::after {
+  display: none;
 }
 
 .app-main {
@@ -117,7 +140,6 @@ onMounted(() => {
   background-color: #f5f7fa;
 }
 
-/* 响应式样式 */
 @media (max-width: 768px) {
   .header-content {
     flex-direction: column;
