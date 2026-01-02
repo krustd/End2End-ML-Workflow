@@ -22,7 +22,6 @@
 ```
 ml_model/
 ├── __init__.py              # 主模块初始化
-├── main.py                  # 主程序入口
 ├── run.py                   # 启动脚本
 ├── pyproject.toml          # 项目依赖配置
 ├── README.md               # 项目说明
