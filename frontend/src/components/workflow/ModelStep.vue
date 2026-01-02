@@ -1,6 +1,21 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ElCard, ElRow, ElCol, ElSelect, ElOption, ElButton, ElAlert, ElDescriptions, ElDescriptionsItem, ElProgress, ElTag, ElSwitch, ElSlider, ElMessage } from 'element-plus'
+import {
+  ElCard,
+  ElRow,
+  ElCol,
+  ElSelect,
+  ElOption,
+  ElButton,
+  ElAlert,
+  ElDescriptions,
+  ElDescriptionsItem,
+  ElProgress,
+  ElTag,
+  ElSwitch,
+  ElSlider,
+  ElMessage,
+} from 'element-plus'
 import { useModelStore } from '@/stores/model'
 import { useDataStore } from '@/stores/data'
 import { useSystemStore } from '@/stores/system'
@@ -17,7 +32,7 @@ const tuneHyperparameters = ref(false)
 
 const selectedTargetColumn = computed({
   get: () => dataStore.targetColumn,
-  set: (value) => dataStore.setTargetColumn(value)
+  set: (value) => dataStore.setTargetColumn(value),
 })
 
 const hasData = computed(() => dataStore.hasData)
@@ -31,10 +46,15 @@ const loading = computed(() => modelStore.loading)
 onMounted(async () => {
   await modelStore.fetchAvailableModels()
   await modelStore.fetchTrainedModels()
-  
+
   selectedModelType.value = settingsStore.defaultModel
-  
-  if (hasData.value && numericColumnOptions.value && numericColumnOptions.value.length > 0 && !dataStore.targetColumn) {
+
+  if (
+    hasData.value &&
+    numericColumnOptions.value &&
+    numericColumnOptions.value.length > 0 &&
+    !dataStore.targetColumn
+  ) {
     dataStore.setTargetColumn(numericColumnOptions.value[0]?.value || '')
   }
 })
@@ -45,26 +65,26 @@ const handleTrainModel = async () => {
       model_type: selectedModelType.value,
       target_column: dataStore.targetColumn,
       test_size: testSize.value,
-      tune_hyperparameters: tuneHyperparameters.value
+      tune_hyperparameters: tuneHyperparameters.value,
     })
-    
+
     systemStore.updateSystemStatus({
       model_trained: true,
       current_step: '预测',
-      current_model: selectedModelType.value
+      current_model: selectedModelType.value,
     })
   } catch (error) {
     console.error('模型训练失败:', error)
     systemStore.updateSystemStatus({
       model_trained: false,
-      current_step: '模型训练'
+      current_step: '模型训练',
     })
   }
 }
 
 const getModelAccuracy = () => {
   if (!currentModel.value || !currentModel.value.test_metrics) return 0
-  
+
   const metrics = currentModel.value.test_metrics
   return metrics.r2 || metrics.r_squared || metrics.accuracy || 0
 }
@@ -82,33 +102,39 @@ const formatMetricValue = (value: number) => {
           <template #header>
             <h3>模型说明</h3>
           </template>
-          
+
           <ElAlert
             title="机器学习模型训练"
             type="info"
             description="本系统支持多种回归模型，包括线性回归、岭回归、随机森林等。选择合适的模型和参数，点击开始训练按钮进行模型训练。"
             show-icon
             :closable="false"
-            style="margin-bottom: 20px;"
+            style="margin-bottom: 20px"
           />
-          
-          <p>系统将使用您上传的数据训练机器学习模型，训练完成后会显示模型评估指标。训练时间取决于数据量和模型复杂度。</p>
+
+          <p>
+            系统将使用您上传的数据训练机器学习模型，训练完成后会显示模型评估指标。训练时间取决于数据量和模型复杂度。
+          </p>
         </ElCard>
       </ElCol>
     </ElRow>
 
-    <ElRow :gutter="20" style="margin-top: 20px;">
+    <ElRow :gutter="20" style="margin-top: 20px">
       <ElCol :span="24">
         <ElCard class="config-card">
           <template #header>
             <h3>模型训练配置</h3>
           </template>
-          
+
           <ElRow :gutter="20">
             <ElCol :span="12">
               <div class="form-item">
                 <label>模型类型</label>
-                <ElSelect v-model="selectedModelType" placeholder="请选择模型类型" style="width: 100%;">
+                <ElSelect
+                  v-model="selectedModelType"
+                  placeholder="请选择模型类型"
+                  style="width: 100%"
+                >
                   <ElOption
                     v-for="option in availableModelOptions"
                     :key="option.value"
@@ -121,7 +147,11 @@ const formatMetricValue = (value: number) => {
             <ElCol :span="12">
               <div class="form-item">
                 <label>目标列</label>
-                <ElSelect v-model="selectedTargetColumn" placeholder="请选择目标列" style="width: 100%;">
+                <ElSelect
+                  v-model="selectedTargetColumn"
+                  placeholder="请选择目标列"
+                  style="width: 100%"
+                >
                   <ElOption
                     v-for="option in numericColumnOptions"
                     :key="option.value"
@@ -132,7 +162,7 @@ const formatMetricValue = (value: number) => {
               </div>
             </ElCol>
           </ElRow>
-          
+
           <ElRow :gutter="20">
             <ElCol :span="12">
               <div class="form-item">
@@ -144,31 +174,27 @@ const formatMetricValue = (value: number) => {
                   :step="0.05"
                   show-stops
                   show-input
-                  :format-tooltip="value => `${(value * 100).toFixed(0)}%`"
+                  :format-tooltip="(value) => `${(value * 100).toFixed(0)}%`"
                 />
               </div>
             </ElCol>
             <ElCol :span="12">
               <div class="form-item">
                 <label>超参数调优</label>
-                <div style="margin-top: 8px;">
-                  <ElSwitch
-                    v-model="tuneHyperparameters"
-                    active-text="开启"
-                    inactive-text="关闭"
-                  />
-                  <div style="margin-top: 5px; color: #909399; font-size: 12px;">
+                <div style="margin-top: 8px">
+                  <ElSwitch v-model="tuneHyperparameters" active-text="开启" inactive-text="关闭" />
+                  <div style="margin-top: 5px; color: #909399; font-size: 12px">
                     开启后会自动寻找最优参数，但训练时间会增加
                   </div>
                 </div>
               </div>
             </ElCol>
           </ElRow>
-          
+
           <div class="train-actions">
-            <ElButton 
+            <ElButton
               type="primary"
-              @click="handleTrainModel" 
+              @click="handleTrainModel"
               :loading="training"
               :disabled="!selectedTargetColumn"
               size="large"
@@ -180,35 +206,35 @@ const formatMetricValue = (value: number) => {
       </ElCol>
     </ElRow>
 
-    <ElRow v-if="training" :gutter="20" style="margin-top: 20px;">
+    <ElRow v-if="training" :gutter="20" style="margin-top: 20px">
       <ElCol :span="24">
         <ElCard class="progress-card">
           <template #header>
             <h3>训练进度</h3>
           </template>
-          
+
           <ElAlert
             title="正在训练模型，请稍等..."
             type="info"
             show-icon
             :closable="false"
-            style="margin-bottom: 20px;"
+            style="margin-bottom: 20px"
           />
-          
+
           <ElProgress :percentage="75" status="success" :show-text="true">
             <template #default="{ percentage }">
               <span class="percentage-value">{{ percentage }}%</span>
             </template>
           </ElProgress>
-          
-          <div style="margin-top: 20px; color: #606266;">
+
+          <div style="margin-top: 20px; color: #606266">
             <p>模型训练可能需要一些时间，具体取决于数据量和模型复杂度。请耐心等待...</p>
           </div>
         </ElCard>
       </ElCol>
     </ElRow>
 
-    <ElRow v-if="hasTrainedModel && currentModel" :gutter="20" style="margin-top: 20px;">
+    <ElRow v-if="hasTrainedModel && currentModel" :gutter="20" style="margin-top: 20px">
       <ElCol :span="24">
         <ElCard class="result-card">
           <template #header>
@@ -217,26 +243,33 @@ const formatMetricValue = (value: number) => {
               <ElTag type="success">训练成功</ElTag>
             </div>
           </template>
-          
+
           <ElAlert
             title="模型训练完成，已可用于预测"
             type="success"
             show-icon
             :closable="false"
-            style="margin-bottom: 20px;"
+            style="margin-bottom: 20px"
           />
-          
+
           <ElDescriptions :column="2" border>
             <ElDescriptionsItem label="模型名称">{{ currentModel.model_name }}</ElDescriptionsItem>
             <ElDescriptionsItem label="模型类型">{{ currentModel.model_type }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="目标列">{{ currentModel.target_name || '未知' }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="特征数量">{{ currentModel.feature_names ? currentModel.feature_names.length : 0 }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="目标列">{{
+              currentModel.target_name || '未知'
+            }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="特征数量">{{
+              currentModel.feature_names ? currentModel.feature_names.length : 0
+            }}</ElDescriptionsItem>
             <ElDescriptionsItem label="准确率" :span="2">
               <ElTag type="success" size="large">{{ formatMetricValue(getModelAccuracy()) }}</ElTag>
             </ElDescriptionsItem>
           </ElDescriptions>
-          
-          <div v-if="currentModel.feature_names && currentModel.feature_names.length > 0" style="margin-top: 20px;">
+
+          <div
+            v-if="currentModel.feature_names && currentModel.feature_names.length > 0"
+            style="margin-top: 20px"
+          >
             <h4>特征列（数据列）</h4>
             <div class="feature-tags">
               <ElTag
@@ -244,24 +277,30 @@ const formatMetricValue = (value: number) => {
                 :key="index"
                 type="info"
                 size="small"
-                style="margin-right: 8px; margin-bottom: 8px;"
+                style="margin-right: 8px; margin-bottom: 8px"
               >
                 {{ feature }}
               </ElTag>
             </div>
           </div>
-          
-          <div style="margin-top: 20px;">
+
+          <div style="margin-top: 20px">
             <h4>模型评估指标</h4>
-            <ElRow :gutter="20" style="margin-top: 15px;">
+            <ElRow :gutter="20" style="margin-top: 15px">
               <ElCol :span="12">
                 <ElCard shadow="never">
                   <template #header>
                     <h5>训练集指标</h5>
                   </template>
-                  <div v-for="(value, key) in currentModel.train_metrics" :key="key" class="metric-item">
+                  <div
+                    v-for="(value, key) in currentModel.train_metrics"
+                    :key="key"
+                    class="metric-item"
+                  >
                     <span class="metric-name">{{ key }}:</span>
-                    <span class="metric-value">{{ typeof value === 'number' ? value.toFixed(4) : value }}</span>
+                    <span class="metric-value">{{
+                      typeof value === 'number' ? value.toFixed(4) : value
+                    }}</span>
                   </div>
                 </ElCard>
               </ElCol>
@@ -270,9 +309,15 @@ const formatMetricValue = (value: number) => {
                   <template #header>
                     <h5>测试集指标</h5>
                   </template>
-                  <div v-for="(value, key) in currentModel.test_metrics" :key="key" class="metric-item">
+                  <div
+                    v-for="(value, key) in currentModel.test_metrics"
+                    :key="key"
+                    class="metric-item"
+                  >
                     <span class="metric-name">{{ key }}:</span>
-                    <span class="metric-value">{{ typeof value === 'number' ? value.toFixed(4) : value }}</span>
+                    <span class="metric-value">{{
+                      typeof value === 'number' ? value.toFixed(4) : value
+                    }}</span>
                   </div>
                 </ElCard>
               </ElCol>
@@ -282,7 +327,7 @@ const formatMetricValue = (value: number) => {
       </ElCol>
     </ElRow>
 
-    <ElRow v-if="!hasData" :gutter="20" style="margin-top: 20px;">
+    <ElRow v-if="!hasData" :gutter="20" style="margin-top: 20px">
       <ElCol :span="24">
         <ElAlert
           title="请先上传并处理数据"
@@ -367,7 +412,7 @@ const formatMetricValue = (value: number) => {
   .form-item {
     margin-bottom: 15px;
   }
-  
+
   .train-actions {
     margin-top: 20px;
   }
@@ -379,11 +424,11 @@ const formatMetricValue = (value: number) => {
     align-items: flex-start;
     gap: 10px;
   }
-  
+
   .form-item {
     margin-bottom: 12px;
   }
-  
+
   .train-actions {
     margin-top: 15px;
   }

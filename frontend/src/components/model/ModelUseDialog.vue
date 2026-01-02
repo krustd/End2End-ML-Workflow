@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { ElDialog, ElForm, ElFormItem, ElInput, ElButton, ElAlert, ElDescriptions, ElDescriptionsItem, ElTag, ElMessage, ElCard } from 'element-plus'
+import {
+  ElDialog,
+  ElForm,
+  ElFormItem,
+  ElInput,
+  ElButton,
+  ElAlert,
+  ElDescriptions,
+  ElDescriptionsItem,
+  ElTag,
+  ElMessage,
+  ElCard,
+} from 'element-plus'
 import { usePredictStore } from '@/stores/predict'
 import { useModelStore } from '@/stores/model'
 import { useDataStore } from '@/stores/data'
@@ -18,7 +30,7 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   visible: false,
-  model: null
+  model: null,
 })
 
 const emit = defineEmits<Emits>()
@@ -28,7 +40,7 @@ const modelStore = useModelStore()
 const dataStore = useDataStore()
 
 const predictForm = ref({
-  data: {} as Record<string, any>
+  data: {} as Record<string, any>,
 })
 
 const loading = computed(() => predictStore.loading)
@@ -38,24 +50,28 @@ const featureFields = computed(() => {
   if (!props.model || !props.model.feature_names) {
     return []
   }
-  
-  return props.model.feature_names.map(name => ({
+
+  return props.model.feature_names.map((name) => ({
     value: name,
-    label: name
+    label: name,
   }))
 })
 
-watch([() => props.visible, () => props.model], ([visible, model]) => {
-  if (visible && model && model.feature_names) {
-    predictForm.value.data = {}
-    model.feature_names.forEach(feature => {
-      predictForm.value.data[feature] = ''
-    })
-    if (model.target_name) {
-      predictForm.value.data[model.target_name] = null
+watch(
+  [() => props.visible, () => props.model],
+  ([visible, model]) => {
+    if (visible && model && model.feature_names) {
+      predictForm.value.data = {}
+      model.feature_names.forEach((feature) => {
+        predictForm.value.data[feature] = ''
+      })
+      if (model.target_name) {
+        predictForm.value.data[model.target_name] = null
+      }
     }
-  }
-}, { immediate: true })
+  },
+  { immediate: true },
+)
 
 const handleClose = () => {
   emit('update:visible', false)
@@ -76,7 +92,7 @@ const handlePredict = async () => {
           ElMessage.error(`请输入特征 ${feature} 的值`)
           return
         }
-        
+
         if (isNaN(Number(value))) {
           ElMessage.error(`特征 ${feature} 的值必须是数字`)
           return
@@ -86,9 +102,9 @@ const handlePredict = async () => {
 
     const result = await predictStore.predict({
       data: predictForm.value.data,
-      model_name: props.model.model_name
+      model_name: props.model.model_name,
     })
-    
+
     ElMessage.success('预测完成')
   } catch (error) {
     console.error('预测失败:', error)
@@ -98,7 +114,7 @@ const handlePredict = async () => {
 
 const resetPredictForm = () => {
   if (props.model && props.model.feature_names) {
-    props.model.feature_names.forEach(feature => {
+    props.model.feature_names.forEach((feature) => {
       predictForm.value.data[feature] = ''
     })
     if (props.model.target_name) {
@@ -124,17 +140,13 @@ const resetPredictForm = () => {
         :description="`模型类型: ${model.model_type}, 目标列: ${model.target_name}, 特征数量: ${model.feature_names?.length || 0}`"
         show-icon
         :closable="false"
-        style="margin-bottom: 20px;"
+        style="margin-bottom: 20px"
       />
 
       <ElRow :gutter="20">
         <ElCol :span="16">
           <ElForm label-width="120px">
-            <ElFormItem 
-              v-for="field in featureFields" 
-              :key="field.value" 
-              :label="field.label"
-            >
+            <ElFormItem v-for="field in featureFields" :key="field.value" :label="field.label">
               <ElInput
                 v-model="predictForm.data[field.value]"
                 :placeholder="`请输入${field.label}`"
@@ -146,20 +158,20 @@ const resetPredictForm = () => {
         </ElCol>
         <ElCol :span="8">
           <div class="predict-actions">
-            <ElButton 
-              type="primary" 
-              @click="handlePredict" 
+            <ElButton
+              type="primary"
+              @click="handlePredict"
               :loading="loading"
               size="large"
-              style="width: 100%; margin-bottom: 15px;"
+              style="width: 100%; margin-bottom: 15px"
             >
               开始预测
             </ElButton>
-            <ElButton @click="resetPredictForm" size="large" style="width: 100%;">
+            <ElButton @click="resetPredictForm" size="large" style="width: 100%">
               重置表单
             </ElButton>
           </div>
-          
+
           <div v-if="predictionResult" class="prediction-result">
             <ElCard shadow="always">
               <template #header>
@@ -167,17 +179,23 @@ const resetPredictForm = () => {
               </template>
               <ElDescriptions :column="1" border>
                 <ElDescriptionsItem label="预测值">
-                  <ElTag type="success" size="large">{{ predictionResult.prediction.toFixed(4) }}</ElTag>
+                  <ElTag type="success" size="large">{{
+                    predictionResult.prediction.toFixed(4)
+                  }}</ElTag>
                 </ElDescriptionsItem>
-                <ElDescriptionsItem label="使用模型">{{ predictionResult.model_name }}</ElDescriptionsItem>
-                <ElDescriptionsItem label="预测时间">{{ predictionResult.timestamp }}</ElDescriptionsItem>
+                <ElDescriptionsItem label="使用模型">{{
+                  predictionResult.model_name
+                }}</ElDescriptionsItem>
+                <ElDescriptionsItem label="预测时间">{{
+                  predictionResult.timestamp
+                }}</ElDescriptionsItem>
               </ElDescriptions>
             </ElCard>
           </div>
         </ElCol>
       </ElRow>
     </div>
-    
+
     <template #footer>
       <ElButton @click="handleClose">关闭</ElButton>
     </template>

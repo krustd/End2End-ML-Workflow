@@ -1,6 +1,21 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { ElCard, ElRow, ElCol, ElUpload, ElButton, ElTable, ElTableColumn, ElTag, ElAlert, ElDescriptions, ElDescriptionsItem, ElSelect, ElOption, ElMessage } from 'element-plus'
+import {
+  ElCard,
+  ElRow,
+  ElCol,
+  ElUpload,
+  ElButton,
+  ElTable,
+  ElTableColumn,
+  ElTag,
+  ElAlert,
+  ElDescriptions,
+  ElDescriptionsItem,
+  ElSelect,
+  ElOption,
+  ElMessage,
+} from 'element-plus'
 import { UploadFilled, InfoFilled } from '@element-plus/icons-vue'
 import { useDataStore } from '@/stores/data'
 import { useSystemStore } from '@/stores/system'
@@ -19,7 +34,7 @@ const handleMissingOptions = [
   { label: '删除缺失值', value: 'drop' },
   { label: '均值填充', value: 'mean' },
   { label: '中位数填充', value: 'median' },
-  { label: '众数填充', value: 'mode' }
+  { label: '众数填充', value: 'mode' },
 ]
 
 const selectedTargetColumn = ref('')
@@ -39,11 +54,11 @@ const loading = computed(() => dataStore.loading)
 
 onMounted(() => {
   previewRows.value = settingsStore.tablePageSize
-  
+
   if (hasData.value) {
     dataStore.fetchDataInfo()
     dataStore.fetchDataPreview(previewRows.value)
-    
+
     if (dataStore.targetColumn) {
       selectedTargetColumn.value = dataStore.targetColumn
     }
@@ -88,14 +103,14 @@ const handleSimpleUpload = async () => {
   try {
     console.log('开始上传文件:', selectedFile.value)
     await dataStore.uploadData(selectedFile.value)
-    
+
     systemStore.updateSystemStatus({
       data_uploaded: true,
-      current_step: '数据上传'
+      current_step: '数据上传',
     })
-    
+
     await dataStore.fetchDataPreview(previewRows.value)
-    
+
     selectedFile.value = null
     if (fileInput.value) {
       fileInput.value.value = ''
@@ -103,36 +118,35 @@ const handleSimpleUpload = async () => {
   } catch (error: any) {
     console.error('上传失败:', error)
     ElMessage.error('文件上传失败: ' + (error.message || '未知错误'))
-    
+
     systemStore.updateSystemStatus({
       data_uploaded: false,
-      current_step: '数据上传'
+      current_step: '数据上传',
     })
   }
 }
 
 const clearUploadedFile = () => {
   dataStore.clearData()
-  
+
   systemStore.updateSystemStatus({
     data_uploaded: false,
-    current_step: '数据上传'
+    current_step: '数据上传',
   })
-  
+
   selectedFile.value = null
   if (fileInput.value) {
     fileInput.value.value = ''
   }
 }
 
-
 const handleProcessData = async () => {
   try {
     await dataStore.processData({
       handle_missing: selectedHandleMissing.value,
-      target_column: selectedTargetColumn.value || undefined
+      target_column: selectedTargetColumn.value || undefined,
     })
-    
+
     await dataStore.fetchDataInfo()
     if (selectedTargetColumn.value) {
       dataStore.setTargetColumn(selectedTargetColumn.value)
@@ -144,7 +158,7 @@ const handleProcessData = async () => {
 
 const handlePreviewRowsChange = async () => {
   settingsStore.updateSettings({ tablePageSize: previewRows.value })
-  
+
   if (hasData.value) {
     await dataStore.fetchDataPreview(previewRows.value)
   }
@@ -172,7 +186,7 @@ const formatFileSize = (size: number) => {
               <ElTag v-if="hasData" type="success">已上传</ElTag>
             </div>
           </template>
-          
+
           <div class="simple-upload-form">
             <form @submit.prevent="handleSimpleUpload" enctype="multipart/form-data">
               <div class="form-group">
@@ -187,21 +201,17 @@ const formatFileSize = (size: number) => {
                   class="form-input"
                 />
               </div>
-              
+
               <div class="file-info" v-if="selectedFile">
                 <p><strong>文件名:</strong> {{ selectedFile.name }}</p>
                 <p><strong>文件大小:</strong> {{ formatFileSize(selectedFile.size) }}</p>
               </div>
-              
+
               <div class="upload-actions">
-                <button
-                  type="submit"
-                  class="upload-button"
-                  :disabled="!selectedFile || loading"
-                >
+                <button type="submit" class="upload-button" :disabled="!selectedFile || loading">
                   {{ loading ? '上传中...' : '上传文件' }}
                 </button>
-                
+
                 <button
                   v-if="hasData && dataInfo"
                   type="button"
@@ -217,7 +227,7 @@ const formatFileSize = (size: number) => {
       </ElCol>
     </ElRow>
 
-    <ElRow v-if="hasData && dataInfo" :gutter="20" style="margin-top: 20px;">
+    <ElRow v-if="hasData && dataInfo" :gutter="20" style="margin-top: 20px">
       <ElCol :span="24">
         <ElCard class="info-card">
           <template #header>
@@ -226,19 +236,32 @@ const formatFileSize = (size: number) => {
               <ElTag type="info">{{ dataInfo.rows_count }} 条数据</ElTag>
             </div>
           </template>
-          
+
           <ElDescriptions :column="2" border>
             <ElDescriptionsItem label="文件名">{{ dataInfo.file_name }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="文件大小">{{ formatFileSize(dataInfo.file_size) }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="文件大小">{{
+              formatFileSize(dataInfo.file_size)
+            }}</ElDescriptionsItem>
             <ElDescriptionsItem label="行数">{{ dataInfo.rows_count }}</ElDescriptionsItem>
             <ElDescriptionsItem label="列数">{{ dataInfo.columns_count }}</ElDescriptionsItem>
             <ElDescriptionsItem label="数值列" :span="2">
-              <ElTag v-for="col in dataInfo.numeric_columns" :key="col" size="small" style="margin-right: 5px;">
+              <ElTag
+                v-for="col in dataInfo.numeric_columns"
+                :key="col"
+                size="small"
+                style="margin-right: 5px"
+              >
                 {{ col }}
               </ElTag>
             </ElDescriptionsItem>
             <ElDescriptionsItem label="分类列" :span="2">
-              <ElTag v-for="col in dataInfo.categorical_columns" :key="col" type="info" size="small" style="margin-right: 5px;">
+              <ElTag
+                v-for="col in dataInfo.categorical_columns"
+                :key="col"
+                type="info"
+                size="small"
+                style="margin-right: 5px"
+              >
                 {{ col }}
               </ElTag>
             </ElDescriptionsItem>
@@ -247,14 +270,18 @@ const formatFileSize = (size: number) => {
       </ElCol>
     </ElRow>
 
-    <ElRow v-if="hasData" :gutter="20" style="margin-top: 20px;">
+    <ElRow v-if="hasData" :gutter="20" style="margin-top: 20px">
       <ElCol :span="24">
         <ElCard class="preview-card">
           <template #header>
             <div class="card-header">
               <h3>3. 数据预览</h3>
               <div class="preview-controls">
-                <ElSelect v-model="previewRows" @change="handlePreviewRowsChange" style="width: 120px; margin-right: 10px;">
+                <ElSelect
+                  v-model="previewRows"
+                  @change="handlePreviewRowsChange"
+                  style="width: 120px; margin-right: 10px"
+                >
                   <ElOption label="10行" :value="10" />
                   <ElOption label="20行" :value="20" />
                   <ElOption label="50行" :value="50" />
@@ -264,7 +291,7 @@ const formatFileSize = (size: number) => {
               </div>
             </div>
           </template>
-          
+
           <ElTable :data="dataPreview" border stripe v-loading="loading" max-height="400">
             <ElTableColumn
               v-for="column in dataInfo?.columns || []"
@@ -278,7 +305,7 @@ const formatFileSize = (size: number) => {
       </ElCol>
     </ElRow>
 
-    <ElRow v-if="hasData && dataInfo" :gutter="20" style="margin-top: 20px;">
+    <ElRow v-if="hasData && dataInfo" :gutter="20" style="margin-top: 20px">
       <ElCol :span="24">
         <ElCard class="process-card">
           <template #header>
@@ -286,21 +313,25 @@ const formatFileSize = (size: number) => {
               <h3>4. 数据处理</h3>
             </div>
           </template>
-          
+
           <ElAlert
             title="数据处理说明"
             type="info"
             description="选择目标列和缺失值处理方式，然后点击处理数据按钮。处理后的数据将用于模型训练。"
             show-icon
             :closable="false"
-            style="margin-bottom: 20px;"
+            style="margin-bottom: 20px"
           />
-          
+
           <ElRow :gutter="20">
             <ElCol :span="12">
               <div class="form-item">
                 <label>目标列（预测目标）</label>
-                <ElSelect v-model="selectedTargetColumn" placeholder="请选择目标列" style="width: 100%;">
+                <ElSelect
+                  v-model="selectedTargetColumn"
+                  placeholder="请选择目标列"
+                  style="width: 100%"
+                >
                   <ElOption
                     v-for="option in numericColumnOptions"
                     :key="option.value"
@@ -313,7 +344,7 @@ const formatFileSize = (size: number) => {
             <ElCol :span="12">
               <div class="form-item">
                 <label>缺失值处理方式</label>
-                <ElSelect v-model="selectedHandleMissing" style="width: 100%;">
+                <ElSelect v-model="selectedHandleMissing" style="width: 100%">
                   <ElOption
                     v-for="option in handleMissingOptions"
                     :key="option.value"
@@ -324,7 +355,7 @@ const formatFileSize = (size: number) => {
               </div>
             </ElCol>
           </ElRow>
-          
+
           <div class="process-actions">
             <ElButton type="primary" @click="handleProcessData" :loading="loading">
               处理数据
@@ -334,7 +365,7 @@ const formatFileSize = (size: number) => {
       </ElCol>
     </ElRow>
 
-    <ElRow v-if="!hasData" :gutter="20" style="margin-top: 20px;">
+    <ElRow v-if="!hasData" :gutter="20" style="margin-top: 20px">
       <ElCol :span="24">
         <ElAlert
           title="请先上传数据"
@@ -488,15 +519,15 @@ const formatFileSize = (size: number) => {
   .upload-actions {
     margin-top: 15px;
   }
-  
+
   .form-item {
     margin-bottom: 15px;
   }
-  
+
   .process-actions {
     margin-top: 20px;
   }
-  
+
   .preview-controls {
     flex-direction: column;
     align-items: flex-start;
@@ -510,15 +541,15 @@ const formatFileSize = (size: number) => {
     align-items: flex-start;
     gap: 10px;
   }
-  
+
   .upload-actions {
     margin-top: 10px;
   }
-  
+
   .form-item {
     margin-bottom: 12px;
   }
-  
+
   .process-actions {
     margin-top: 15px;
   }

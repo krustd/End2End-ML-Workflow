@@ -1,6 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ElCard, ElRow, ElCol, ElTable, ElTableColumn, ElButton, ElTag, ElDialog, ElAlert, ElMessage, ElSpace, ElPopconfirm } from 'element-plus'
+import {
+  ElCard,
+  ElRow,
+  ElCol,
+  ElTable,
+  ElTableColumn,
+  ElButton,
+  ElTag,
+  ElDialog,
+  ElAlert,
+  ElMessage,
+  ElSpace,
+  ElPopconfirm,
+} from 'element-plus'
 import ModelStorage from '@/utils/modelStorage'
 import type { ModelInfo } from '@/utils/modelStorage'
 import { useModelStore } from '@/stores/model'
@@ -29,7 +42,7 @@ const loadModelList = () => {
 }
 
 const handleSelect = (selection: ModelInfo[]) => {
-  selectedModels.value = selection.map(model => model.model_name)
+  selectedModels.value = selection.map((model) => model.model_name)
 }
 
 const handleView = (model: ModelInfo) => {
@@ -62,7 +75,7 @@ const handleImportConfirm = async () => {
     ElMessage.warning('请选择要导入的模型文件')
     return
   }
-  
+
   try {
     await ModelStorage.importModel(importFile.value)
     loadModelList()
@@ -98,30 +111,30 @@ const formatStorageSize = (bytes: number) => {
 
 const getModelTypeTag = (modelType: string) => {
   const typeMap: Record<string, string> = {
-    'linear_regression': 'primary',
-    'ridge': 'success',
-    'lasso': 'info',
-    'elastic_net': 'warning',
-    'random_forest': 'danger',
-    'gradient_boosting': 'success',
-    'svr': 'info',
-    'decision_tree': 'warning',
-    'knn': 'danger'
+    linear_regression: 'primary',
+    ridge: 'success',
+    lasso: 'info',
+    elastic_net: 'warning',
+    random_forest: 'danger',
+    gradient_boosting: 'success',
+    svr: 'info',
+    decision_tree: 'warning',
+    knn: 'danger',
   }
   return typeMap[modelType] || 'info'
 }
 
 const getModelTypeDisplayName = (modelType: string) => {
   const nameMap: Record<string, string> = {
-    'linear_regression': '线性回归',
-    'ridge': '岭回归',
-    'lasso': 'Lasso回归',
-    'elastic_net': '弹性网络',
-    'random_forest': '随机森林',
-    'gradient_boosting': '梯度提升',
-    'svr': '支持向量回归',
-    'decision_tree': '决策树',
-    'knn': 'K近邻'
+    linear_regression: '线性回归',
+    ridge: '岭回归',
+    lasso: 'Lasso回归',
+    elastic_net: '弹性网络',
+    random_forest: '随机森林',
+    gradient_boosting: '梯度提升',
+    svr: '支持向量回归',
+    decision_tree: '决策树',
+    knn: 'K近邻',
   }
   return nameMap[modelType] || modelType
 }
@@ -136,11 +149,14 @@ const getModelTypeDisplayName = (modelType: string) => {
             <div class="card-header">
               <h3>模型存储管理</h3>
               <div class="storage-usage">
-                <span>存储使用: {{ formatStorageSize(storageUsage.used) }} / {{ formatStorageSize(storageUsage.total) }} ({{ storageUsage.percentage }}%)</span>
+                <span
+                  >存储使用: {{ formatStorageSize(storageUsage.used) }} /
+                  {{ formatStorageSize(storageUsage.total) }} ({{ storageUsage.percentage }}%)</span
+                >
               </div>
             </div>
           </template>
-          
+
           <ElRow :gutter="20">
             <ElCol :span="16">
               <ElAlert
@@ -149,7 +165,7 @@ const getModelTypeDisplayName = (modelType: string) => {
                 description="这里管理所有本地存储的机器学习模型。您可以查看、导出、删除模型，或者导入新的模型。模型存储在浏览器的本地存储中，不会占用服务器空间。"
                 show-icon
                 :closable="false"
-                style="margin-bottom: 20px;"
+                style="margin-bottom: 20px"
               />
             </ElCol>
             <ElCol :span="8">
@@ -172,18 +188,14 @@ const getModelTypeDisplayName = (modelType: string) => {
       </ElCol>
     </ElRow>
 
-    <ElRow :gutter="20" style="margin-top: 20px;">
+    <ElRow :gutter="20" style="margin-top: 20px">
       <ElCol :span="24">
         <ElCard class="model-list-card">
           <template #header>
             <h3>模型列表</h3>
           </template>
-          
-          <ElTable
-            :data="modelList"
-            style="width: 100%"
-            @selection-change="handleSelect"
-          >
+
+          <ElTable :data="modelList" style="width: 100%" @selection-change="handleSelect">
             <ElTableColumn type="selection" width="55" />
             <ElTableColumn prop="model_name" label="模型名称" width="200" />
             <ElTableColumn prop="model_type" label="模型类型" width="150">
@@ -213,7 +225,9 @@ const getModelTypeDisplayName = (modelType: string) => {
               <template #default="scope">
                 <ElSpace>
                   <ElButton size="small" @click="handleView(scope.row)">详情</ElButton>
-                  <ElButton size="small" type="primary" @click="handleUseModel(scope.row)">使用</ElButton>
+                  <ElButton size="small" type="primary" @click="handleUseModel(scope.row)"
+                    >使用</ElButton
+                  >
                   <ElButton size="small" @click="handleExport(scope.row.model_name)">导出</ElButton>
                   <ElPopconfirm
                     title="确定要删除这个模型吗？"
@@ -278,7 +292,7 @@ const getModelTypeDisplayName = (modelType: string) => {
                   :key="feature"
                   type="info"
                   size="small"
-                  style="margin: 2px;"
+                  style="margin: 2px"
                 >
                   {{ feature }}
                 </ElTag>
@@ -286,16 +300,22 @@ const getModelTypeDisplayName = (modelType: string) => {
             </ElCard>
           </ElCol>
         </ElRow>
-        
-        <ElRow :gutter="20" style="margin-top: 20px;">
+
+        <ElRow :gutter="20" style="margin-top: 20px">
           <ElCol :span="12">
             <ElCard shadow="never">
               <template #header>
                 <h4>训练集指标</h4>
               </template>
-              <div v-for="(value, key) in currentModel.train_metrics" :key="key" class="metric-item">
+              <div
+                v-for="(value, key) in currentModel.train_metrics"
+                :key="key"
+                class="metric-item"
+              >
                 <span class="metric-name">{{ key }}:</span>
-                <span class="metric-value">{{ typeof value === 'number' ? value.toFixed(4) : value }}</span>
+                <span class="metric-value">{{
+                  typeof value === 'number' ? value.toFixed(4) : value
+                }}</span>
               </div>
             </ElCard>
           </ElCol>
@@ -306,7 +326,9 @@ const getModelTypeDisplayName = (modelType: string) => {
               </template>
               <div v-for="(value, key) in currentModel.test_metrics" :key="key" class="metric-item">
                 <span class="metric-name">{{ key }}:</span>
-                <span class="metric-value">{{ typeof value === 'number' ? value.toFixed(4) : value }}</span>
+                <span class="metric-value">{{
+                  typeof value === 'number' ? value.toFixed(4) : value
+                }}</span>
               </div>
             </ElCard>
           </ElCol>
@@ -322,19 +344,19 @@ const getModelTypeDisplayName = (modelType: string) => {
           description="请选择之前导出的模型JSON文件。导入的模型将添加到本地存储中。"
           show-icon
           :closable="false"
-          style="margin-bottom: 20px;"
+          style="margin-bottom: 20px"
         />
         <input
           type="file"
           accept=".json"
           @change="handleFileChange(($event.target as HTMLInputElement).files?.[0] || null)"
           ref="fileInput"
-          style="display: none;"
+          style="display: none"
         />
-        <ElButton @click="(fileInput as HTMLInputElement).click()" style="width: 100%;">
+        <ElButton @click="(fileInput as HTMLInputElement).click()" style="width: 100%">
           选择文件
         </ElButton>
-        <div v-if="importFile" style="margin-top: 10px;">
+        <div v-if="importFile" style="margin-top: 10px">
           <p>已选择文件: {{ importFile.name }}</p>
         </div>
       </div>
@@ -346,10 +368,7 @@ const getModelTypeDisplayName = (modelType: string) => {
       </template>
     </ElDialog>
 
-    <ModelUseDialog
-      v-model:visible="useModelDialogVisible"
-      :model="selectedUseModel"
-    />
+    <ModelUseDialog v-model:visible="useModelDialogVisible" :model="selectedUseModel" />
   </div>
 </template>
 
@@ -430,7 +449,7 @@ const getModelTypeDisplayName = (modelType: string) => {
     align-items: flex-start;
     gap: 10px;
   }
-  
+
   .storage-usage {
     font-size: 12px;
   }

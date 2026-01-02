@@ -1,6 +1,23 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ElCard, ElRow, ElCol, ElForm, ElFormItem, ElInput, ElButton, ElAlert, ElDescriptions, ElDescriptionsItem, ElSelect, ElOption, ElTable, ElTableColumn, ElTag, ElMessage } from 'element-plus'
+import {
+  ElCard,
+  ElRow,
+  ElCol,
+  ElForm,
+  ElFormItem,
+  ElInput,
+  ElButton,
+  ElAlert,
+  ElDescriptions,
+  ElDescriptionsItem,
+  ElSelect,
+  ElOption,
+  ElTable,
+  ElTableColumn,
+  ElTag,
+  ElMessage,
+} from 'element-plus'
 import { usePredictStore } from '@/stores/predict'
 import { useModelStore } from '@/stores/model'
 import { useDataStore } from '@/stores/data'
@@ -13,7 +30,7 @@ const settingsStore = useSettingsStore()
 
 const predictForm = ref({
   data: {} as Record<string, any>,
-  model_name: ''
+  model_name: '',
 })
 
 const batchData = ref<Record<string, any>[]>([])
@@ -31,14 +48,14 @@ const allColumnOptions = computed(() => dataStore.allColumnOptions)
 
 onMounted(async () => {
   await modelStore.fetchTrainedModels()
-  
+
   if (currentModel.value) {
     selectedModel.value = currentModel.value.model_name
     predictForm.value.model_name = currentModel.value.model_name
   }
-  
+
   if (allColumnOptions.value) {
-    allColumnOptions.value.forEach(col => {
+    allColumnOptions.value.forEach((col) => {
       predictForm.value.data[col.value] = col.value === dataStore.targetColumn ? null : ''
     })
   }
@@ -49,11 +66,11 @@ const handlePredict = async () => {
     console.error('没有可用的模型，请先在Step2训练模型')
     return
   }
-  
+
   try {
     await predictStore.predict({
       data: predictForm.value.data,
-      model_name: currentModel.value.model_name
+      model_name: currentModel.value.model_name,
     })
   } catch (error) {
     console.error('预测失败:', error)
@@ -65,7 +82,7 @@ const handleBatchPredict = async () => {
     console.error('没有可用的模型，请先在Step2训练模型')
     return
   }
-  
+
   try {
     await predictStore.batchPredict(batchData.value, currentModel.value.model_name)
   } catch (error) {
@@ -78,9 +95,13 @@ const handleExportPredictions = async () => {
     console.error('没有可用的模型，请先在Step2训练模型')
     return
   }
-  
+
   try {
-    await predictStore.exportPredictions(batchData.value, exportFormat.value, currentModel.value.model_name)
+    await predictStore.exportPredictions(
+      batchData.value,
+      exportFormat.value,
+      currentModel.value.model_name,
+    )
   } catch (error) {
     console.error('导出预测结果失败:', error)
   }
@@ -89,7 +110,7 @@ const handleExportPredictions = async () => {
 const addBatchDataRow = () => {
   const newRow: Record<string, any> = {}
   if (allColumnOptions.value) {
-    allColumnOptions.value.forEach(col => {
+    allColumnOptions.value.forEach((col) => {
       newRow[col.value] = col.value === dataStore.targetColumn ? null : ''
     })
   }
@@ -106,7 +127,7 @@ const clearBatchData = () => {
 
 const resetPredictForm = () => {
   if (allColumnOptions.value) {
-    allColumnOptions.value.forEach(col => {
+    allColumnOptions.value.forEach((col) => {
       predictForm.value.data[col.value] = col.value === dataStore.targetColumn ? null : ''
     })
   }
@@ -121,16 +142,16 @@ const resetPredictForm = () => {
           <template #header>
             <h3>1. 单条预测</h3>
           </template>
-          
+
           <ElAlert
             title="输入特征值进行预测"
             type="info"
             description="请填写各特征的值，然后点击开始预测按钮。系统将自动使用您在Step2中训练的模型进行预测。"
             show-icon
             :closable="false"
-            style="margin-bottom: 20px;"
+            style="margin-bottom: 20px"
           />
-          
+
           <ElRow :gutter="20">
             <ElCol :span="16">
               <ElForm label-width="120px">
@@ -140,8 +161,12 @@ const resetPredictForm = () => {
                     <span class="model-name">{{ currentModel.model_name }}</span>
                   </div>
                 </ElFormItem>
-                
-                <ElFormItem v-for="column in allColumnOptions" :key="column.value" :label="column.label">
+
+                <ElFormItem
+                  v-for="column in allColumnOptions"
+                  :key="column.value"
+                  :label="column.label"
+                >
                   <ElInput
                     v-model="predictForm.data[column.value]"
                     :placeholder="`请输入${column.label}`"
@@ -149,7 +174,10 @@ const resetPredictForm = () => {
                     step="any"
                     :disabled="column.value === dataStore.targetColumn"
                   />
-                  <div v-if="column.value === dataStore.targetColumn" style="color: #909399; font-size: 12px; margin-top: 5px;">
+                  <div
+                    v-if="column.value === dataStore.targetColumn"
+                    style="color: #909399; font-size: 12px; margin-top: 5px"
+                  >
                     这是目标列，将在预测中输出，无需输入
                   </div>
                 </ElFormItem>
@@ -163,15 +191,15 @@ const resetPredictForm = () => {
                   :loading="loading"
                   :disabled="!currentModel"
                   size="large"
-                  style="width: 100%; margin-bottom: 15px;"
+                  style="width: 100%; margin-bottom: 15px"
                 >
                   开始预测
                 </ElButton>
-                <ElButton @click="resetPredictForm" size="large" style="width: 100%;">
+                <ElButton @click="resetPredictForm" size="large" style="width: 100%">
                   重置表单
                 </ElButton>
               </div>
-              
+
               <div v-if="predictionResult" class="prediction-result">
                 <ElCard shadow="always">
                   <template #header>
@@ -179,10 +207,16 @@ const resetPredictForm = () => {
                   </template>
                   <ElDescriptions :column="1" border>
                     <ElDescriptionsItem label="预测值">
-                      <ElTag type="success" size="large">{{ predictionResult.prediction.toFixed(4) }}</ElTag>
+                      <ElTag type="success" size="large">{{
+                        predictionResult.prediction.toFixed(4)
+                      }}</ElTag>
                     </ElDescriptionsItem>
-                    <ElDescriptionsItem label="使用模型">{{ predictionResult.model_name }}</ElDescriptionsItem>
-                    <ElDescriptionsItem label="预测时间">{{ predictionResult.timestamp }}</ElDescriptionsItem>
+                    <ElDescriptionsItem label="使用模型">{{
+                      predictionResult.model_name
+                    }}</ElDescriptionsItem>
+                    <ElDescriptionsItem label="预测时间">{{
+                      predictionResult.timestamp
+                    }}</ElDescriptionsItem>
                   </ElDescriptions>
                 </ElCard>
               </div>
@@ -192,7 +226,7 @@ const resetPredictForm = () => {
       </ElCol>
     </ElRow>
 
-    <ElRow :gutter="20" style="margin-top: 20px;">
+    <ElRow :gutter="20" style="margin-top: 20px">
       <ElCol :span="24">
         <ElCard class="batch-predict-card">
           <template #header>
@@ -204,17 +238,17 @@ const resetPredictForm = () => {
               </div>
             </div>
           </template>
-          
+
           <ElAlert
             title="批量预测说明"
             type="info"
             description="可以添加多行数据进行批量预测，预测完成后可以导出结果。系统将自动使用您在Step2中训练的模型。"
             show-icon
             :closable="false"
-            style="margin-bottom: 20px;"
+            style="margin-bottom: 20px"
           />
-          
-          <ElTable :data="batchData" border stripe style="margin-bottom: 20px;">
+
+          <ElTable :data="batchData" border stripe style="margin-bottom: 20px">
             <ElTableColumn type="index" label="序号" width="60" />
             <ElTableColumn
               v-for="column in allColumnOptions"
@@ -231,25 +265,23 @@ const resetPredictForm = () => {
                   placeholder="输入值"
                   :disabled="column.value === dataStore.targetColumn"
                 />
-                <div v-if="column.value === dataStore.targetColumn" style="color: #909399; font-size: 10px;">
+                <div
+                  v-if="column.value === dataStore.targetColumn"
+                  style="color: #909399; font-size: 10px"
+                >
                   目标列
                 </div>
               </template>
             </ElTableColumn>
             <ElTableColumn label="操作" width="80">
               <template #default="scope">
-                <ElButton 
-                  type="danger" 
-                  size="small" 
-                  @click="removeBatchDataRow(scope.$index)"
-                  link
-                >
+                <ElButton type="danger" size="small" @click="removeBatchDataRow(scope.$index)" link>
                   删除
                 </ElButton>
               </template>
             </ElTableColumn>
           </ElTable>
-          
+
           <div class="batch-predict-controls">
             <ElRow :gutter="20">
               <ElCol :span="8">
@@ -264,45 +296,64 @@ const resetPredictForm = () => {
                   @click="handleBatchPredict"
                   :loading="loading"
                   :disabled="!currentModel || batchData.length === 0"
-                  style="width: 100%;"
+                  style="width: 100%"
                 >
                   批量预测
                 </ElButton>
               </ElCol>
               <ElCol :span="8">
-                <ElSelect v-model="exportFormat" style="width: 100%;">
+                <ElSelect v-model="exportFormat" style="width: 100%">
                   <ElOption label="CSV格式" value="csv" />
                   <ElOption label="Excel格式" value="excel" />
                   <ElOption label="JSON格式" value="json" />
                 </ElSelect>
               </ElCol>
             </ElRow>
-            
-            <div style="margin-top: 15px;">
-              <ElButton 
+
+            <div style="margin-top: 15px">
+              <ElButton
                 @click="handleExportPredictions"
                 :disabled="!batchPredictionResult || !batchPredictionResult.predictions.length"
-                style="width: 100%;"
+                style="width: 100%"
               >
                 导出预测结果
               </ElButton>
             </div>
           </div>
-          
-          <div v-if="batchPredictionResult && batchPredictionResult.predictions.length" style="margin-top: 20px;">
+
+          <div
+            v-if="batchPredictionResult && batchPredictionResult.predictions.length"
+            style="margin-top: 20px"
+          >
             <ElCard shadow="always">
               <template #header>
                 <h4>批量预测结果</h4>
               </template>
               <ElDescriptions :column="2" border>
-                <ElDescriptionsItem label="预测数量">{{ batchPredictionResult.total_samples }}</ElDescriptionsItem>
-                <ElDescriptionsItem label="使用模型">{{ batchPredictionResult.model_name }}</ElDescriptionsItem>
-                <ElDescriptionsItem label="预测时间" :span="2">{{ batchPredictionResult.timestamp }}</ElDescriptionsItem>
+                <ElDescriptionsItem label="预测数量">{{
+                  batchPredictionResult.total_samples
+                }}</ElDescriptionsItem>
+                <ElDescriptionsItem label="使用模型">{{
+                  batchPredictionResult.model_name
+                }}</ElDescriptionsItem>
+                <ElDescriptionsItem label="预测时间" :span="2">{{
+                  batchPredictionResult.timestamp
+                }}</ElDescriptionsItem>
               </ElDescriptions>
-              
-              <div style="margin-top: 15px;">
+
+              <div style="margin-top: 15px">
                 <h5>预测值列表</h5>
-                <ElTable :data="batchPredictionResult.predictions.map((value, index) => ({ index: index + 1, value }))" border stripe max-height="200">
+                <ElTable
+                  :data="
+                    batchPredictionResult.predictions.map((value, index) => ({
+                      index: index + 1,
+                      value,
+                    }))
+                  "
+                  border
+                  stripe
+                  max-height="200"
+                >
                   <ElTableColumn prop="index" label="序号" width="80" />
                   <ElTableColumn prop="value" label="预测值">
                     <template #default="scope">
@@ -317,7 +368,7 @@ const resetPredictForm = () => {
       </ElCol>
     </ElRow>
 
-    <ElRow v-if="!hasTrainedModel" :gutter="20" style="margin-top: 20px;">
+    <ElRow v-if="!hasTrainedModel" :gutter="20" style="margin-top: 20px">
       <ElCol :span="24">
         <ElAlert
           title="请先训练模型"
@@ -328,8 +379,8 @@ const resetPredictForm = () => {
         />
       </ElCol>
     </ElRow>
-    
-    <ElRow v-if="!hasData" :gutter="20" style="margin-top: 20px;">
+
+    <ElRow v-if="!hasData" :gutter="20" style="margin-top: 20px">
       <ElCol :span="24">
         <ElAlert
           title="请先上传数据"
@@ -400,7 +451,7 @@ const resetPredictForm = () => {
   .predict-actions {
     padding: 15px;
   }
-  
+
   .batch-predict-controls {
     padding: 10px;
   }
@@ -412,11 +463,11 @@ const resetPredictForm = () => {
     align-items: flex-start;
     gap: 10px;
   }
-  
+
   .predict-actions {
     padding: 10px;
   }
-  
+
   .batch-actions {
     flex-direction: column;
     gap: 5px;

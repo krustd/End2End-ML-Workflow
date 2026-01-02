@@ -146,16 +146,16 @@ onMounted(() => {
     padding: 10px;
     height: auto;
   }
-  
+
   .app-title {
     font-size: 16px;
     margin-bottom: 10px;
   }
-  
+
   .app-header {
     height: auto;
   }
-  
+
   .app-menu .el-menu-item {
     padding: 0 10px;
     font-size: 14px;
@@ -166,21 +166,21 @@ onMounted(() => {
   .header-content {
     padding: 5px;
   }
-  
+
   .app-title {
     font-size: 14px;
     flex-direction: column;
     text-align: center;
   }
-  
+
   .app-icon {
     height: 24px;
   }
-  
+
   .app-menu {
     width: 100%;
   }
-  
+
   .app-menu .el-menu-item {
     padding: 5px;
     font-size: 12px;

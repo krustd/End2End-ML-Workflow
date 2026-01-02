@@ -18,7 +18,7 @@ const handleTabClick = (tab: any) => {
     activeTab.value = 'data'
     return false
   }
-  
+
   if (tab.props.name === 'predict' && !systemStore.canProceedToPrediction) {
     if (systemStore.canProceedToModelTraining) {
       activeTab.value = 'model'
@@ -27,16 +27,16 @@ const handleTabClick = (tab: any) => {
     }
     return false
   }
-  
+
   const stepMap: Record<string, string> = {
-    'data': '数据上传',
-    'model': '模型训练',
-    'predict': '预测'
+    data: '数据上传',
+    model: '模型训练',
+    predict: '预测',
   }
-  
+
   if (stepMap[tab.props.name]) {
     systemStore.updateSystemStatus({
-      current_step: stepMap[tab.props.name]
+      current_step: stepMap[tab.props.name],
     })
   }
 }
@@ -72,10 +72,18 @@ const handleTabClick = (tab: any) => {
         <ElTabPane label="Step1 数据" name="data">
           <DataStep />
         </ElTabPane>
-        <ElTabPane label="Step2 模型" name="model" :disabled="!systemStore.canProceedToModelTraining">
+        <ElTabPane
+          label="Step2 模型"
+          name="model"
+          :disabled="!systemStore.canProceedToModelTraining"
+        >
           <ModelStep />
         </ElTabPane>
-        <ElTabPane label="Step3 预测" name="predict" :disabled="!systemStore.canProceedToPrediction">
+        <ElTabPane
+          label="Step3 预测"
+          name="predict"
+          :disabled="!systemStore.canProceedToPrediction"
+        >
           <PredictStep />
         </ElTabPane>
       </ElTabs>
@@ -136,7 +144,7 @@ const handleTabClick = (tab: any) => {
   .workflow-container {
     padding: 0 10px;
   }
-  
+
   :deep(.el-step.is-simple .el-step__title) {
     font-size: 12px;
   }
@@ -148,11 +156,11 @@ const handleTabClick = (tab: any) => {
     align-items: flex-start;
     gap: 5px;
   }
-  
+
   .card-icon {
     height: 24px;
   }
-  
+
   .card-header h2 {
     font-size: 18px;
   }

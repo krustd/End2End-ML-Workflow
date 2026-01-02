@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ElCard, ElRow, ElCol, ElDescriptions, ElDescriptionsItem, ElTag, ElSelect, ElOption, ElSwitch, ElAlert, ElDivider } from 'element-plus'
+import {
+  ElCard,
+  ElRow,
+  ElCol,
+  ElDescriptions,
+  ElDescriptionsItem,
+  ElTag,
+  ElSelect,
+  ElOption,
+  ElSwitch,
+  ElAlert,
+  ElDivider,
+} from 'element-plus'
 import { useSystemStore } from '@/stores/system'
 import { useModelStore } from '@/stores/model'
 import { useSettingsStore } from '@/stores/settings'
@@ -19,7 +31,7 @@ const availableModelOptions = computed(() => modelStore.availableModelOptions)
 onMounted(async () => {
   await systemStore.fetchSystemStatus()
   await modelStore.fetchAvailableModels()
-  
+
   selectedModel.value = settingsStore.defaultModel
 })
 
@@ -43,19 +55,19 @@ const getStepStatus = (step: string) => {
   if (systemStatus.value.current_step === step) {
     return 'warning'
   }
-  
+
   if (step === '数据上传' && systemStatus.value.data_uploaded) {
     return 'success'
   }
-  
+
   if (step === '模型训练' && systemStatus.value.model_trained) {
     return 'success'
   }
-  
+
   if (step === '预测' && systemStatus.value.model_trained) {
     return 'success'
   }
-  
+
   return 'info'
 }
 
@@ -63,33 +75,33 @@ const getStepText = (step: string) => {
   if (systemStatus.value.current_step === step) {
     return '进行中'
   }
-  
+
   if (step === '数据上传' && systemStatus.value.data_uploaded) {
     return '已完成'
   }
-  
+
   if (step === '模型训练' && systemStatus.value.model_trained) {
     return '已完成'
   }
-  
+
   if (step === '预测' && systemStatus.value.model_trained) {
     return '可进行'
   }
-  
+
   return '未开始'
 }
 
 const getModelDisplayName = (modelType: string) => {
   const modelNames: Record<string, string> = {
-    'linear_regression': '线性回归',
-    'ridge': '岭回归',
-    'lasso': 'Lasso回归',
-    'elastic_net': '弹性网络',
-    'random_forest': '随机森林',
-    'gradient_boosting': '梯度提升',
-    'svr': '支持向量回归',
-    'decision_tree': '决策树',
-    'knn': 'K近邻'
+    linear_regression: '线性回归',
+    ridge: '岭回归',
+    lasso: 'Lasso回归',
+    elastic_net: '弹性网络',
+    random_forest: '随机森林',
+    gradient_boosting: '梯度提升',
+    svr: '支持向量回归',
+    decision_tree: '决策树',
+    knn: 'K近邻',
   }
   return modelNames[modelType] || modelType
 }
@@ -103,7 +115,7 @@ const getModelDisplayName = (modelType: string) => {
           <template #header>
             <h3>当前系统状态</h3>
           </template>
-          
+
           <ElDescriptions :column="2" border>
             <ElDescriptionsItem label="数据上传状态">
               <ElTag :type="systemStatus.data_uploaded ? 'success' : 'danger'">
@@ -122,9 +134,9 @@ const getModelDisplayName = (modelType: string) => {
               <ElTag type="primary">{{ getModelDisplayName(systemStatus.current_model) }}</ElTag>
             </ElDescriptionsItem>
           </ElDescriptions>
-          
+
           <ElDivider content-position="left">流程进度</ElDivider>
-          
+
           <ElRow :gutter="20">
             <ElCol :span="8">
               <ElCard shadow="never" class="step-card">
@@ -159,22 +171,22 @@ const getModelDisplayName = (modelType: string) => {
           </ElRow>
         </ElCard>
       </ElCol>
-      
-      <ElCol :span="24" style="margin-top: 20px;">
+
+      <ElCol :span="24" style="margin-top: 20px">
         <ElCard class="behavior-card">
           <template #header>
             <h3>默认行为说明</h3>
           </template>
-          
+
           <ElAlert
             title="系统默认行为"
             type="info"
             description="了解系统的默认行为，以便更好地使用系统功能。"
             show-icon
             :closable="false"
-            style="margin-bottom: 20px;"
+            style="margin-bottom: 20px"
           />
-          
+
           <ElRow :gutter="20">
             <ElCol :span="12">
               <ElCard shadow="never" class="behavior-item">
@@ -189,8 +201,8 @@ const getModelDisplayName = (modelType: string) => {
               </ElCard>
             </ElCol>
           </ElRow>
-          
-          <ElRow :gutter="20" style="margin-top: 15px;">
+
+          <ElRow :gutter="20" style="margin-top: 15px">
             <ElCol :span="12">
               <ElCard shadow="never" class="behavior-item">
                 <h4>预测结果</h4>
@@ -206,18 +218,18 @@ const getModelDisplayName = (modelType: string) => {
           </ElRow>
         </ElCard>
       </ElCol>
-      
-      <ElCol :span="24" style="margin-top: 20px;">
+
+      <ElCol :span="24" style="margin-top: 20px">
         <ElCard class="display-card">
           <template #header>
             <h3>显示与体验设置</h3>
           </template>
-          
+
           <ElRow :gutter="20">
             <ElCol :span="8">
               <div class="setting-item">
                 <label>默认模型</label>
-                <ElSelect v-model="selectedModel" @change="handleModelChange" style="width: 100%;">
+                <ElSelect v-model="selectedModel" @change="handleModelChange" style="width: 100%">
                   <ElOption
                     v-for="option in availableModelOptions"
                     :key="option.value"
@@ -231,7 +243,7 @@ const getModelDisplayName = (modelType: string) => {
             <ElCol :span="8">
               <div class="setting-item">
                 <label>主题颜色</label>
-                <ElSelect v-model="themeColor" @change="handleThemeChange" style="width: 100%;">
+                <ElSelect v-model="themeColor" @change="handleThemeChange" style="width: 100%">
                   <ElOption label="默认蓝色" value="#409eff" />
                   <ElOption label="成功绿色" value="#67c23a" />
                   <ElOption label="警告橙色" value="#e6a23c" />
@@ -243,7 +255,11 @@ const getModelDisplayName = (modelType: string) => {
             <ElCol :span="8">
               <div class="setting-item">
                 <label>表格每页显示行数</label>
-                <ElSelect v-model="tablePageSize" @change="handlePageSizeChange" style="width: 100%;">
+                <ElSelect
+                  v-model="tablePageSize"
+                  @change="handlePageSizeChange"
+                  style="width: 100%"
+                >
                   <ElOption label="10行" :value="10" />
                   <ElOption label="20行" :value="20" />
                   <ElOption label="50行" :value="50" />
@@ -254,28 +270,30 @@ const getModelDisplayName = (modelType: string) => {
           </ElRow>
         </ElCard>
       </ElCol>
-      
-      <ElCol :span="24" style="margin-top: 20px;">
+
+      <ElCol :span="24" style="margin-top: 20px">
         <ElCard class="about-card">
           <template #header>
             <h3>关于本系统</h3>
           </template>
-          
+
           <ElDescriptions :column="2" border>
-            <ElDescriptionsItem label="系统名称">基于机器学习的数据分析与统计系统</ElDescriptionsItem>
+            <ElDescriptionsItem label="系统名称"
+              >基于机器学习的数据分析与统计系统</ElDescriptionsItem
+            >
             <ElDescriptionsItem label="版本号">v1.0.0</ElDescriptionsItem>
             <ElDescriptionsItem label="适用场景" :span="2">
               适用于各种数据分析场景，如房价预测、销售预测、实验数据分析等
             </ElDescriptionsItem>
             <ElDescriptionsItem label="技术栈" :span="2">
-              前端：Vue3 + Element Plus + TypeScript<br>
-              后端：Go + GoFrame<br>
+              前端：Vue3 + Element Plus + TypeScript<br />
+              后端：Go + GoFrame<br />
               机器学习：Python + Scikit-learn
             </ElDescriptionsItem>
           </ElDescriptions>
-          
+
           <ElDivider content-position="left">免责声明</ElDivider>
-          
+
           <ElAlert
             title="预测结果仅供参考，不构成决策建议"
             type="warning"
@@ -296,11 +314,17 @@ const getModelDisplayName = (modelType: string) => {
   padding: 0 15px;
 }
 
-.status-card, .behavior-card, .display-card, .about-card {
+.status-card,
+.behavior-card,
+.display-card,
+.about-card {
   margin-bottom: 20px;
 }
 
-.status-card h3, .behavior-card h3, .display-card h3, .about-card h3 {
+.status-card h3,
+.behavior-card h3,
+.display-card h3,
+.about-card h3 {
   margin: 0;
   color: #303133;
 }
@@ -357,12 +381,12 @@ const getModelDisplayName = (modelType: string) => {
   .settings-container {
     padding: 0 10px;
   }
-  
+
   .step-card {
     height: 120px;
     margin-bottom: 10px;
   }
-  
+
   .behavior-item {
     height: auto;
     padding: 15px 0;
@@ -374,15 +398,15 @@ const getModelDisplayName = (modelType: string) => {
     height: auto;
     padding: 15px 10px;
   }
-  
+
   .step-content h4 {
     font-size: 14px;
   }
-  
+
   .behavior-item h4 {
     font-size: 15px;
   }
-  
+
   .behavior-item p {
     font-size: 13px;
   }

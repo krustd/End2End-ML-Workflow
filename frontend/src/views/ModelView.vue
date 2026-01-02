@@ -92,11 +92,11 @@ onMounted(() => {
     align-items: flex-start;
     gap: 5px;
   }
-  
+
   .card-icon {
     height: 24px;
   }
-  
+
   .card-header h2 {
     font-size: 18px;
   }
