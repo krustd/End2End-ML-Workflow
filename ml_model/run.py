@@ -29,6 +29,7 @@ def main():
     os.makedirs("saved_models", exist_ok=True)
     os.makedirs("uploads", exist_ok=True)
     os.makedirs("logs", exist_ok=True)
+    os.makedirs("saved_models",exist_ok=True)
     
     try:
         run_api(host=args.host, port=args.port, debug=args.debug)
