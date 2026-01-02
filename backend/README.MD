@@ -1,6 +1,8 @@
 # 机器学习数据分析与统计系统后端
 
-![Icon](../Icon.png)
+<p align="center">
+  <img src="../Icon.png" alt="Icon" width="150" height="150">
+</p>
 
 ![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org)
 ![GoFrame](https://img.shields.io/badge/GoFrame-v2.9.7-orange.svg)](https://goframe.org)

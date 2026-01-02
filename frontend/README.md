@@ -1,48 +1,231 @@
-# data-analysis-frontend
+# 基于机器学习的数据分析与统计系统
 
-This template should help get you started developing with Vue 3 in Vite.
+一个完整的前端数据分析平台，提供数据上传、模型训练和预测功能，支持多种机器学习回归模型。
 
-## Recommended IDE Setup
+<p align="center">
+  <img src="../Icon.png" alt="Icon" width="150" height="150">
+</p>
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## 项目简介
 
-## Recommended Browser Setup
+本系统是一个基于Vue3 + Element Plus + TypeScript构建的现代化前端应用，提供完整的机器学习数据分析流程。用户可以通过简单的界面操作完成数据上传、预处理、模型训练、评估和预测等任务，无需编写代码即可使用机器学习技术进行数据分析。
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+## 主要功能
 
-## Type Support for `.vue` Imports in TS
+### 📊 数据处理
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+- 支持CSV格式数据文件上传
+- 自动数据分析和预览
+- 灵活的缺失值处理策略（删除、均值填充、中位数填充、众数填充）
+- 智能识别数值列和分类列
 
-## Customize configuration
+### 🤖 模型训练
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+- 支持多种回归模型：
+  - 线性回归
+  - 岭回归
+  - Lasso回归
+  - 弹性网络
+  - 随机森林
+  - 梯度提升
+  - 支持向量回归
+  - 决策树
+  - K近邻
+- 可调节测试集比例
+- 支持超参数自动调优
+- 详细的模型评估指标展示
 
-## Project Setup
+### 🔮 预测功能
+
+- 单条数据预测
+- 批量数据预测
+- 预测结果导出（CSV、Excel、JSON格式）
+- 实时预测结果显示
+
+### 💾 模型管理
+
+- 本地模型存储
+- 模型导入/导出功能
+- 模型详情查看
+- 模型使用历史记录
+
+### ⚙️ 系统设置
+
+- 自定义主题颜色
+- 表格显示设置
+- 默认模型配置
+- 系统状态监控
+
+## 技术栈
+
+- **前端框架**: Vue 3.5.26
+- **UI组件库**: Element Plus 2.13.0
+- **状态管理**: Pinia 3.0.4
+- **路由管理**: Vue Router 4.6.4
+- **HTTP客户端**: Axios 1.13.2
+- **开发语言**: TypeScript
+- **构建工具**: Vite 7.3.0
+- **代码规范**: ESLint + Prettier
+
+## 系统架构
+
+```
+src/
+├── components/          # 组件目录
+│   ├── model/          # 模型管理组件
+│   └── workflow/       # 工作流组件
+├── router/             # 路由配置
+├── services/           # API服务
+├── stores/             # 状态管理
+├── utils/              # 工具函数
+└── views/              # 页面视图
+```
+
+## 快速开始
+
+### 环境要求
+
+- Node.js ^20.19.0 || >=22.12.0
+- npm 或 yarn
+
+### 安装依赖
 
 ```sh
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+### 开发环境运行
 
 ```sh
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+### 生产环境构建
 
 ```sh
 npm run build
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### 代码检查
 
 ```sh
 npm run lint
 ```
+
+### 代码格式化
+
+```sh
+npm run format
+```
+
+## 使用指南
+
+### 基本流程
+
+1. **数据上传**：在"操作流程"页面上传CSV格式的数据文件
+2. **数据处理**：选择目标列和缺失值处理方式，处理数据
+3. **模型训练**：选择合适的模型类型，配置参数并开始训练
+4. **模型评估**：查看训练结果和评估指标
+5. **数据预测**：使用训练好的模型进行预测
+6. **结果导出**：导出预测结果为所需格式
+
+### 详细说明
+
+#### 数据上传要求
+
+- 文件格式：CSV
+- 文件大小：建议不超过10MB
+- 数据要求：包含表头，数值列不包含非数字字符
+
+#### 模型选择建议
+
+- **线性回归**：适用于线性关系明显的数据集
+- **随机森林**：适用于复杂非线性关系，鲁棒性好
+- **梯度提升**：适用于高精度要求的场景
+- **支持向量回归**：适用于中小型数据集
+
+#### 预测注意事项
+
+- 确保输入特征与训练数据一致
+- 检查输入特征值是否在合理范围内
+- 批量预测时确保每行数据格式正确
+
+## 浏览器支持
+
+- Chrome (推荐)
+- Firefox
+- Edge
+- Safari
+
+## 开发说明
+
+### 项目结构
+
+- `src/components/workflow/` - 工作流相关组件
+  - `DataStep.vue` - 数据上传和处理组件
+  - `ModelStep.vue` - 模型训练配置组件
+  - `PredictStep.vue` - 预测功能组件
+- `src/components/model/` - 模型管理组件
+  - `ModelManager.vue` - 模型列表和管理
+  - `ModelUseDialog.vue` - 模型使用对话框
+- `src/stores/` - Pinia状态管理
+  - `data.ts` - 数据状态管理
+  - `model.ts` - 模型状态管理
+  - `predict.ts` - 预测状态管理
+  - `system.ts` - 系统状态管理
+  - `settings.ts` - 设置状态管理
+
+### 状态管理
+
+项目使用Pinia进行状态管理，主要包含以下store：
+
+- `dataStore` - 管理数据上传、处理和预览
+- `modelStore` - 管理模型训练和评估
+- `predictStore` - 管理预测功能和结果
+- `systemStore` - 管理系统状态和流程控制
+- `settingsStore` - 管理用户设置和偏好
+
+### API接口
+
+系统通过`src/services/api.ts`与后端通信，主要接口包括：
+
+- 数据上传和处理
+- 模型训练和评估
+- 预测和结果导出
+- 模型管理
+
+## 常见问题
+
+### 数据上传失败
+
+- 检查文件格式是否为CSV
+- 确认文件大小不超过限制
+- 验证数据格式是否正确
+
+### 模型训练失败
+
+- 确保已选择目标列
+- 检查数据是否已完成处理
+- 验证目标列是否为数值型
+
+### 预测结果异常
+
+- 确认已训练模型
+- 检查输入特征是否完整
+- 验证特征值是否在合理范围内
+
+## 免责声明
+
+本系统提供的预测结果仅供参考，不能作为专业决策的唯一依据。在使用预测结果进行重要决策前，请咨询相关领域的专业人士。
+
+## 许可证
+
+本项目采用MIT许可证。
+
+## 贡献指南
+
+欢迎提交Issue和Pull Request来改进项目。
+
+## 联系方式
+
+如有问题或建议，请通过Issue联系我们。

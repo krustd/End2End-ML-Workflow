@@ -1,6 +1,8 @@
 # 机器学习数据分析与统计系统
 
-![Icon](../Icon.png)
+<p align="center">
+  <img src="../Icon.png" alt="Icon" width="150" height="150">
+</p>
 
 这是一个基于机器学习的数据分析与统计系统，提供了完整的数据处理、模型训练和预测功能，以及RESTful API接口供后端调用。
 
