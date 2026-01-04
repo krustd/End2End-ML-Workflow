@@ -10,6 +10,7 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/gclient"
+	"github.com/gogf/gf/v2/util/grand"
 )
 
 type PythonAPIConfig struct {
@@ -138,10 +139,25 @@ func (c *Client) UploadData(ctx context.Context, filePath string, fileData ...[]
 	var resp *gclient.Response
 
 	if len(fileData) > 0 && fileData[0] != nil {
-		resp, err = c.client.Post(ctx, c.baseURL+"/data/upload", g.Map{
-			"file": fileData[0],
-		})
+		// 创建临时文件来保存文件内容，然后使用文件路径上传
+		tempFile := filePath
+		if tempFile == "" {
+			tempFile = "temp.csv"
+		}
+
+		// 使用Post方法，并设置Content-Type为multipart/form-data
+		// 创建一个包含文件内容的multipart/form-data请求
+		boundary := "----GoFrameBoundary" + grand.S(16)
+		body := "--" + boundary + "\r\n"
+		body += fmt.Sprintf("Content-Disposition: form-data; name=\"file\"; filename=\"%s\"\r\n", tempFile)
+		body += "Content-Type: text/csv\r\n\r\n"
+		body += string(fileData[0]) + "\r\n"
+		body += "--" + boundary + "--\r\n"
+
+		resp, err = c.client.SetHeader("Content-Type", "multipart/form-data; boundary="+boundary).
+			Post(ctx, c.baseURL+"/data/upload", body)
 	} else {
+		// 使用文件路径上传
 		resp, err = c.client.Post(ctx, c.baseURL+"/data/upload", g.Map{
 			"file": "@file:" + filePath,
 		})

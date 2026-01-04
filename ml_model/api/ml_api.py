@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import uvicorn
 import logging
+import redis
 
 from data.data_processor import DataProcessor
 from models.model_trainer import ModelTrainer
@@ -32,11 +33,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 全局DataProcessor实例，每个worker进程一个
 data_processor = DataProcessor()
 model_trainer = ModelTrainer()
 predictor = Predictor()
 
-system_status = {
+# 定期清理任务
+import asyncio
+import threading
+import time
+
+def cleanup_idle_data():
+    """定期清理长时间未使用的数据"""
+    while True:
+        try:
+            data_processor.check_and_cleanup()
+            time.sleep(300)  # 每5分钟检查一次
+        except Exception as e:
+            logger.error(f"清理任务出错: {str(e)}")
+            time.sleep(60)  # 出错时1分钟后重试
+
+# 启动清理线程
+cleanup_thread = threading.Thread(target=cleanup_idle_data, daemon=True)
+cleanup_thread.start()
+
+# Redis连接
+try:
+    redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    redis_client.ping()
+    redis_available = True
+except:
+    redis_available = False
+    logging.warning("Redis不可用，将使用内存存储状态（多进程环境下可能不一致）")
+
+# 默认系统状态
+default_system_status = {
     "data_uploaded": False,
     "model_trained": False,
     "current_step": "数据上传",
@@ -44,8 +75,130 @@ system_status = {
     "available_models": model_trainer.get_available_models()
 }
 
-temp_dir = tempfile.mkdtemp()
-current_data_file = None
+# 使用内存存储，不再创建临时目录
+# temp_dir = tempfile.mkdtemp()  # 注释掉，改用Redis存储文件
+
+def get_system_status():
+    """获取系统状态"""
+    if redis_available:
+        try:
+            status = redis_client.get("system_status")
+            if status:
+                return json.loads(status)
+        except:
+            pass
+    return default_system_status.copy()
+
+def set_system_status(status):
+    """设置系统状态"""
+    if redis_available:
+        try:
+            redis_client.set("system_status", json.dumps(status))
+            return
+        except:
+            pass
+    # 如果Redis不可用，更新默认状态（仅在单进程环境下有效）
+    global default_system_status
+    default_system_status.update(status)
+
+def get_current_data_file():
+    """获取当前数据文件内容"""
+    if redis_available:
+        try:
+            # 获取当前活跃的文件ID
+            current_file_id = redis_client.get("current_file_id")
+            if current_file_id:
+                # 每次访问后更新过期时间，延长活跃数据的生命周期
+                content = redis_client.get(f"file_content:{current_file_id}")
+                if content:
+                    redis_client.expire(f"file_content:{current_file_id}", 1800)  # 重置30分钟过期时间
+                    redis_client.expire(f"file_info:{current_file_id}", 1800)
+                return content
+        except:
+            pass
+    return None
+
+def set_current_data_file(file_content, filename):
+    """设置当前数据文件内容到Redis，并设置30分钟过期时间"""
+    if redis_available:
+        try:
+            import uuid
+            # 生成唯一的文件ID
+            file_id = str(uuid.uuid4())
+            
+            # 存储文件内容和信息，设置30分钟(1800秒)过期时间
+            redis_client.setex(f"file_content:{file_id}", 1800, file_content)
+            redis_client.setex(f"file_info:{file_id}", 1800, json.dumps({"filename": filename}))
+            
+            # 设置为当前活跃文件
+            redis_client.set("current_file_id", file_id)
+            
+            return file_id
+        except:
+            pass
+    # 如果Redis不可用，无法在多进程环境下共享状态
+    return None
+
+def get_current_data_filename():
+    """获取当前数据文件名"""
+    if redis_available:
+        try:
+            current_file_id = redis_client.get("current_file_id")
+            if current_file_id:
+                file_info = redis_client.get(f"file_info:{current_file_id}")
+                if file_info:
+                    info = json.loads(file_info)
+                    return info.get("filename")
+        except:
+            pass
+    return None
+
+def get_all_files():
+    """获取所有存储的文件信息"""
+    if redis_available:
+        try:
+            # 获取所有文件信息的键
+            keys = redis_client.keys("file_info:*")
+            files = []
+            for key in keys:
+                file_info = redis_client.get(key)
+                if file_info:
+                    file_id = key.split(":", 1)[1]
+                    info = json.loads(file_info)
+                    info["file_id"] = file_id
+                    files.append(info)
+            return files
+        except:
+            pass
+    return []
+
+def switch_to_file(file_id):
+    """切换到指定的文件"""
+    if redis_available:
+        try:
+            # 检查文件是否存在
+            if redis_client.exists(f"file_content:{file_id}"):
+                redis_client.set("current_file_id", file_id)
+                return True
+        except:
+            pass
+    return False
+
+def delete_file(file_id):
+    """删除指定的文件"""
+    if redis_available:
+        try:
+            redis_client.delete(f"file_content:{file_id}")
+            redis_client.delete(f"file_info:{file_id}")
+            
+            # 如果删除的是当前文件，清除当前文件ID
+            current_file_id = redis_client.get("current_file_id")
+            if current_file_id == file_id:
+                redis_client.delete("current_file_id")
+            return True
+        except:
+            pass
+    return False
 
 class PredictionRequest(BaseModel):
     data: Dict[str, Any]
@@ -86,31 +239,34 @@ async def root():
     }
 
 @app.get("/system/status")
-async def get_system_status():
+async def get_system_status_endpoint():
     return {
         "success": True,
-        "status": system_status
+        "status": get_system_status()
     }
 
 @app.post("/data/upload")
 async def upload_data(file: UploadFile = File(...)):
-    global current_data_file
-    
     try:
         if not file.filename.endswith('.csv'):
             raise HTTPException(status_code=400, detail="只支持CSV文件")
         
-        file_path = os.path.join(temp_dir, file.filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        # 读取文件内容到内存
+        file_content = await file.read()
+        file_text = file_content.decode('utf-8')
         
-        current_data_file = file_path
+        # 保存文件内容到Redis，设置30分钟过期
+        set_current_data_file(file_text, file.filename)
         
-        result = data_processor.load_csv(file_path)
+        # 直接从内存加载CSV
+        result = data_processor.load_csv_from_content(file_text, file.filename)
         
         if result['success']:
-            system_status["data_uploaded"] = True
-            system_status["current_step"] = "模型训练"
+            # 更新系统状态
+            status = get_system_status()
+            status["data_uploaded"] = True
+            status["current_step"] = "模型训练"
+            set_system_status(status)
             
             return serialize_numpy_pandas(result)
         else:
@@ -125,6 +281,19 @@ async def upload_data(file: UploadFile = File(...)):
 @app.get("/data/info")
 async def get_data_info():
     try:
+        # 检查是否有上传的数据
+        current_data = get_current_data_file()
+        current_filename = get_current_data_filename()
+        if not current_data:
+            raise HTTPException(status_code=400, detail="没有上传的数据")
+        
+        # 如果当前进程没有加载数据，尝试从内存加载
+        if not data_processor.data_content or data_processor.data_file != current_filename:
+            data_processor.load_csv_from_content(current_data, current_filename)
+        
+        # 更新访问时间
+        data_processor.update_access_time()
+        
         data_info = data_processor.get_data_info()
         
         if not data_info['file_name']:
@@ -144,6 +313,19 @@ async def get_data_info():
 @app.get("/data/preview")
 async def get_data_preview(rows: int = 20):
     try:
+        # 检查是否有上传的数据
+        current_data = get_current_data_file()
+        current_filename = get_current_data_filename()
+        if not current_data:
+            raise HTTPException(status_code=400, detail="没有上传的数据")
+        
+        # 如果当前进程没有加载数据，尝试从内存加载
+        if not data_processor.data_content or data_processor.data_file != current_filename:
+            data_processor.load_csv_from_content(current_data, current_filename)
+        
+        # 更新访问时间
+        data_processor.update_access_time()
+        
         preview = data_processor.get_data_preview(rows)
         
         if not preview:
@@ -163,8 +345,22 @@ async def get_data_preview(rows: int = 20):
 @app.post("/data/process")
 async def process_data(request: DataProcessRequest):
     try:
-        if not system_status["data_uploaded"]:
+        status = get_system_status()
+        if not status["data_uploaded"]:
             raise HTTPException(status_code=400, detail="没有上传的数据")
+        
+        # 检查是否有上传的数据
+        current_data = get_current_data_file()
+        current_filename = get_current_data_filename()
+        if not current_data:
+            raise HTTPException(status_code=400, detail="没有上传的数据")
+        
+        # 如果当前进程没有加载数据，尝试从内存加载
+        if not data_processor.data_content or data_processor.data_file != current_filename:
+            data_processor.load_csv_from_content(current_data, current_filename)
+        
+        # 更新访问时间
+        data_processor.update_access_time()
         
         X, y = data_processor.preprocess_data(
             handle_missing=request.handle_missing,
@@ -193,7 +389,8 @@ async def train_model(request: ModelTrainRequest, background_tasks: BackgroundTa
     import base64
     
     try:
-        if not system_status["data_uploaded"]:
+        status = get_system_status()
+        if not status["data_uploaded"]:
             raise HTTPException(status_code=400, detail="没有上传的数据")
         
         if request.model_type not in model_trainer.get_available_models():
@@ -205,6 +402,16 @@ async def train_model(request: ModelTrainRequest, background_tasks: BackgroundTa
         except Exception as e:
             logger.error(f"创建模型保存目录失败: {str(e)}")
             raise HTTPException(status_code=500, detail=f"创建模型保存目录失败: {str(e)}")
+        
+        # 检查是否有上传的数据
+        current_data = get_current_data_file()
+        current_filename = get_current_data_filename()
+        if not current_data:
+            raise HTTPException(status_code=400, detail="没有上传的数据")
+        
+        # 如果当前进程没有加载数据，尝试从内存加载
+        if not data_processor.data_content or data_processor.data_file != current_filename:
+            data_processor.load_csv_from_content(current_data, current_filename)
         
         X, y = data_processor.preprocess_data(
             handle_missing='drop',
@@ -221,9 +428,11 @@ async def train_model(request: ModelTrainRequest, background_tasks: BackgroundTa
         )
         
         if result['success']:
-            system_status["model_trained"] = True
-            system_status["current_step"] = "预测"
-            system_status["current_model"] = request.model_type
+            # 更新系统状态
+            status["model_trained"] = True
+            status["current_step"] = "预测"
+            status["current_model"] = request.model_type
+            set_system_status(status)
             
             model_name = result['model_name']
             
@@ -286,8 +495,19 @@ async def get_model_metrics(model_name: str):
 @app.post("/model/compare")
 async def compare_models(test_size: float = 0.2):
     try:
-        if not system_status["data_uploaded"]:
+        status = get_system_status()
+        if not status["data_uploaded"]:
             raise HTTPException(status_code=400, detail="没有上传的数据")
+        
+        # 检查是否有上传的数据
+        current_data = get_current_data_file()
+        current_filename = get_current_data_filename()
+        if not current_data:
+            raise HTTPException(status_code=400, detail="没有上传的数据")
+        
+        # 如果当前进程没有加载数据，尝试从内存加载
+        if not data_processor.data_content or data_processor.data_file != current_filename:
+            data_processor.load_csv_from_content(current_data, current_filename)
         
         X, y = data_processor.preprocess_data(handle_missing='drop')
         
@@ -355,7 +575,8 @@ async def predict(request: PredictionRequest):
                 if os.path.exists(temp_file_path):
                     os.unlink(temp_file_path)
         else:
-            if not system_status["model_trained"]:
+            status = get_system_status()
+            if not status["model_trained"]:
                 raise HTTPException(status_code=400, detail="没有训练的模型")
             
             if request.model_name and request.model_name in predictor.get_available_models():
@@ -425,7 +646,8 @@ async def batch_predict(request: BatchPredictionRequest):
                 if os.path.exists(temp_file_path):
                     os.unlink(temp_file_path)
         else:
-            if not system_status["model_trained"]:
+            status = get_system_status()
+            if not status["model_trained"]:
                 raise HTTPException(status_code=400, detail="没有训练的模型")
             
             if request.model_name and request.model_name in predictor.get_available_models():
@@ -486,7 +708,7 @@ async def export_predictions(request: ExportPredictionsRequest):
                                 break
                 
                 output_filename = f"predictions.{request.format}"
-                output_path = os.path.join(temp_dir, output_filename)
+                output_path = os.path.join(tempfile.gettempdir(), output_filename)
                 
                 result = temp_predictor.export_predictions(request.data, output_path, request.format)
                 
@@ -502,14 +724,15 @@ async def export_predictions(request: ExportPredictionsRequest):
                 if os.path.exists(temp_file_path):
                     os.unlink(temp_file_path)
         else:
-            if not system_status["model_trained"]:
+            status = get_system_status()
+            if not status["model_trained"]:
                 raise HTTPException(status_code=400, detail="没有训练的模型")
             
             if request.model_name and request.model_name in predictor.get_available_models():
                 predictor.set_current_model(request.model_name)
             
             output_filename = f"predictions.{request.format}"
-            output_path = os.path.join(temp_dir, output_filename)
+            output_path = os.path.join(tempfile.gettempdir(), output_filename)
             
             result = predictor.export_predictions(request.data, output_path, request.format)
             
