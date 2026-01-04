@@ -43,11 +43,13 @@
 
 #### 机器学习模块
 - **框架**: FastAPI
+- **Web服务器**: Gunicorn + Uvicorn（多Worker模式）
 - **机器学习**: Scikit-learn
 - **数据处理**: Pandas, NumPy
 - **数据可视化**: Matplotlib, Seaborn
-- **Web服务**: Uvicorn
 - **配置管理**: Pydantic
+- **依赖管理**: UV
+- **状态存储**: Redis（多Worker模式支持）
 
 ## 📋 功能特性
 
@@ -106,19 +108,38 @@
 #### 1. 克隆项目
 
 ```bash
-git clone <repository-url>
-cd DataAnalysisFinalProject
+git clone https://github.com/krustd/End2End-ML-Workflow.git
+cd End2End-ML-Workflow
 ```
 
 #### 2. 启动机器学习服务
 
+##### 单进程模式（开发环境）
 ```bash
 cd ml_model
 uv sync  # 或 pip install -e .
 python run.py
 ```
 
+##### 多Worker模式（生产环境）
+```bash
+cd ml_model
+uv sync
+
+# 使用main.py启动（推荐）
+uv run main.py                    # 默认启动多Worker模式
+uv run main.py --workers 4        # 指定4个Worker进程
+uv run main.py --mode single       # 切换到单进程模式
+uv run main.py --debug             # 启用调试模式
+
+# 使用run.py启动
+uv run run.py --use-gunicorn       # 使用Gunicorn启动多Worker模式
+uv run run.py --use-gunicorn --workers 4  # 指定4个Worker进程
+```
+
 服务启动后，可通过 http://localhost:8000 访问API文档
+
+> **注意**: 多Worker模式需要Redis服务支持，用于状态共享。请确保Redis服务已启动并运行在localhost:6379。
 
 #### 3. 启动后端服务
 
@@ -287,8 +308,25 @@ make test     # 运行测试
 ```bash
 cd ml_model
 uv sync
+
+# 开发模式
 python run.py --debug
+
+# 生产模式（多Worker）
+uv run main.py --workers 4
 ```
+
+#### 多Worker模式说明
+
+本项目支持使用Gunicorn + Uvicorn的多Worker模式，可以处理来自GoFrame等客户端的并发请求：
+
+- **默认Worker数量**: CPU核心数 × 2 + 1
+- **请求分配**: 当GoFrame发送4个并发请求时，Gunicorn会自动将它们分配给4个不同的Worker进程
+- **并行处理**: 每个Worker进程可以独立处理请求，提高系统并发能力
+- **状态共享**: 使用Redis存储共享状态，确保多进程间数据一致性
+- **自动清理**: 定期清理长时间未使用的数据，释放内存
+
+详细配置请参考: [多Worker模式说明](ml_model/MULTI_WORKER_README.md)
 
 ## 🐛 常见问题
 

@@ -16,6 +16,8 @@
 - **分层架构**: Controller -> Logic -> HTTP Client -> Python ML API
 - **REST API**: 提供完整的数据分析、模型管理和预测服务API
 - **Python对接**: 与Python ML API无缝集成，支持机器学习功能
+- **模型数据传输**: 支持Base64编码的模型数据和模型信息传输
+- **文件上传优化**: 支持直接上传文件内容，提高处理效率
 - **配置管理**: 基于YAML的配置文件管理
 - **日志系统**: 完整的日志记录和管理
 - **错误处理**: 统一的错误处理和响应格式
@@ -114,6 +116,12 @@
 - `POST /predict/batch` - 批量预测
 - `POST /predict/export` - 导出预测结果
 
+### 模型传输API
+
+- `POST /predict/with-model` - 使用指定模型数据预测
+- `POST /predict/batch/with-model` - 使用指定模型数据批量预测
+- `POST /predict/with-model-and-info` - 使用指定模型数据和模型信息预测
+
 ### Hello API
 
 - `GET /hello` - Hello World示例接口
@@ -169,6 +177,14 @@ python_api:
   port: 8000  # Python ML API服务端口
   timeout: 30   # 超时时间（秒）
   debug: false   # 是否启用调试模式
+```
+
+### 模型传输配置
+
+```yaml
+model_transfer:
+  enable_base64: true  # 是否启用Base64编码传输模型数据
+  chunk_size: 1024     # 模型数据分块大小（KB）
 ```
 
 ### 日志配置

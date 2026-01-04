@@ -4,7 +4,7 @@
   <img src="../Icon.png" alt="Icon" width="150" height="150">
 </p>
 
-这是一个基于机器学习的数据分析与统计系统，提供了完整的数据处理、模型训练和预测功能，以及RESTful API接口供后端调用。
+这是一个基于机器学习的数据分析与统计系统，提供了完整的数据处理、模型训练和预测功能，以及RESTful API接口供后端调用。系统支持多Worker模式，使用Redis进行状态共享，提高并发处理能力。
 
 ## 功能特点
 
@@ -16,6 +16,11 @@
 - **模型比较**: 支持多种模型的性能比较
 - **特征分析**: 支持特征重要性计算和异常值检测
 - **数据概要**: 自动生成数据概要报告
+- **多Worker模式**: 支持Gunicorn + Uvicorn多进程部署
+- **状态共享**: 使用Redis进行多进程间状态共享
+- **内存缓存**: 智能缓存机制，避免重复加载数据
+- **自动清理**: 定期清理长时间未使用的数据，释放内存
+- **模型传输**: 支持Base64编码的模型数据传输
 
 ## 项目结构
 
@@ -104,6 +109,13 @@ uv run gunicorn -c gunicorn_config.py api.ml_api:app
 - API服务: http://localhost:8000
 - API文档: http://localhost:8000/docs
 
+#### 多Worker模式要求
+
+多Worker模式需要以下环境支持：
+- **Redis服务**: 用于状态共享，默认运行在localhost:6379
+- **内存管理**: 每个Worker进程独立管理内存，建议根据数据量调整Worker数量
+- **文件访问**: 确保所有Worker进程都能访问上传的文件
+
 #### 多Worker模式说明
 
 本项目支持使用Gunicorn + Uvicorn的多Worker模式，可以处理来自GoFrame等客户端的并发请求：
@@ -151,6 +163,13 @@ uv run test_concurrent.py --requests 10
 - `POST /predict` - 单条预测（支持模型数据、模型名称和模型信息）
 - `POST /predict/batch` - 批量预测（支持模型数据、模型名称和模型信息）
 - `POST /predict/export` - 导出预测结果（支持CSV、Excel和JSON格式）
+
+### 状态管理API
+
+- `GET /system/status` - 获取系统状态（包括Redis连接状态）
+- `GET /data/files` - 获取所有存储的文件信息
+- `POST /data/switch/{file_id}` - 切换到指定的文件
+- `DELETE /data/files/{file_id}` - 删除指定的文件
 
 ## 使用示例
 
@@ -285,6 +304,21 @@ print(response.json())
 - `SYSTEM_CONFIG`: 系统相关配置
 - `LOGGING_CONFIG`: 日志相关配置
 - `DATABASE_CONFIG`: 数据库相关配置
+- `REDIS_CONFIG`: Redis连接配置（多Worker模式）
+
+### Redis配置
+
+```python
+REDIS_CONFIG = {
+    'host': 'localhost',
+    'port': 6379,
+    'db': 0,
+    'decode_responses': True,
+    'socket_timeout': 5,
+    'socket_connect_timeout': 5,
+    'retry_on_timeout': True
+}
+```
 
 ## 数据处理功能
 
@@ -299,6 +333,12 @@ print(response.json())
 - 数据概要生成：自动计算数值列和分类列的统计摘要
 - 异常值检测：支持IQR和Z-score方法
 - 特征重要性计算：基于模型的特征重要性分析
+
+### 内存管理
+
+- **缓存机制**: 每个Worker进程最多保留3个数据副本
+- **自动清理**: 定期清理超过30分钟未使用的数据
+- **访问跟踪**: 跟踪数据的最后访问时间，智能管理内存
 
 ## 模型训练与评估
 
@@ -352,6 +392,8 @@ print(response.json())
 - **数据可视化**: Matplotlib, Seaborn
 - **配置管理**: Pydantic
 - **依赖管理**: UV
+- **状态存储**: Redis（多Worker模式）
+- **序列化**: Pickle, Base64
 
 ## 系统要求
 
@@ -360,7 +402,7 @@ print(response.json())
 
 ## 多Worker模式注意事项
 
-1. **状态共享**: 多Worker进程之间不共享内存，如果有全局状态需要考虑使用外部存储（如Redis）
+1. **状态共享**: 多Worker进程之间不共享内存，系统使用Redis进行状态共享
 2. **文件上传**: 文件上传功能在多Worker模式下需要确保所有Worker都能访问上传的文件
 3. **日志**: 日志会输出到标准输出，由Gunicorn统一管理
 4. **调试**: 在多Worker模式下，调试较为困难，建议在开发时使用单进程模式
@@ -368,6 +410,10 @@ print(response.json())
    - Worker数量通常设置为CPU核心数的2-4倍
    - 最大请求数根据内存使用情况调整，防止内存泄漏
    - 超时设置根据业务需求调整
+6. **内存管理**:
+   - 每个Worker进程独立管理内存，避免内存泄漏影响其他进程
+   - 使用智能缓存机制，限制每个进程最多保留3个数据副本
+   - 定期清理长时间未使用的数据，释放内存资源
 
 ## 许可证
 
