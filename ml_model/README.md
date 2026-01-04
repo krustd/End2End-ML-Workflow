@@ -23,13 +23,12 @@
 ml_model/
 ├── __init__.py              # 主模块初始化
 ├── run.py                   # 启动脚本
+├── main.py                  # 主启动脚本（支持多Worker模式）
 ├── pyproject.toml          # 项目依赖配置
 ├── README.md               # 项目说明
 ├── .gitignore              # Git忽略文件
 ├── uv.lock                 # UV依赖锁定文件
-├── test_api.py             # API测试文件
-├── test_fix.py             # 修复测试文件
-├── test_prediction.py      # 预测测试文件
+├── gunicorn_config.py      # Gunicorn配置文件
 ├── data/                   # 数据处理模块
 │   ├── __init__.py
 │   └── data_processor.py   # 数据处理器
@@ -71,6 +70,8 @@ pip install -e .
 
 ### 3. 运行API服务
 
+#### 单进程模式（开发环境）
+
 ```bash
 # 使用默认配置运行
 python run.py
@@ -82,9 +83,45 @@ python run.py --host 127.0.0.1 --port 8080
 python run.py --debug
 ```
 
+#### 多Worker模式（生产环境）
+
+```bash
+# 使用main.py启动（推荐）
+uv run main.py                    # 默认启动多Worker模式
+uv run main.py --workers 4        # 指定4个Worker进程
+uv run main.py --mode single       # 切换到单进程模式
+uv run main.py --debug             # 启用调试模式
+
+# 使用run.py启动
+uv run run.py --use-gunicorn       # 使用Gunicorn启动多Worker模式
+uv run run.py --use-gunicorn --workers 4  # 指定4个Worker进程
+
+# 直接使用Gunicorn
+uv run gunicorn -c gunicorn_config.py api.ml_api:app
+```
+
 服务启动后，可以通过以下地址访问：
 - API服务: http://localhost:8000
 - API文档: http://localhost:8000/docs
+
+#### 多Worker模式说明
+
+本项目支持使用Gunicorn + Uvicorn的多Worker模式，可以处理来自GoFrame等客户端的并发请求：
+
+- **默认Worker数量**: CPU核心数 × 2 + 1
+- **请求分配**: 当GoFrame发送4个并发请求时，Gunicorn会自动将它们分配给4个不同的Worker进程
+- **并行处理**: 每个Worker进程可以独立处理请求，提高系统并发能力
+- **配置文件**: [`gunicorn_config.py`](gunicorn_config.py:1) 包含详细的Gunicorn配置
+
+#### 并发测试
+
+```bash
+# 安装测试依赖
+uv add aiohttp
+
+# 运行并发测试
+uv run test_concurrent.py --requests 10
+```
 
 ## API接口说明
 
@@ -309,10 +346,10 @@ print(response.json())
 ## 技术栈
 
 - **后端框架**: FastAPI
+- **Web服务器**: Gunicorn + Uvicorn（多Worker模式）
 - **机器学习**: Scikit-learn
 - **数据处理**: Pandas, NumPy
 - **数据可视化**: Matplotlib, Seaborn
-- **Web服务**: Uvicorn
 - **配置管理**: Pydantic
 - **依赖管理**: UV
 
@@ -320,6 +357,17 @@ print(response.json())
 
 - Python 3.8+（推荐使用Python 3.13）
 - 推荐使用虚拟环境管理依赖
+
+## 多Worker模式注意事项
+
+1. **状态共享**: 多Worker进程之间不共享内存，如果有全局状态需要考虑使用外部存储（如Redis）
+2. **文件上传**: 文件上传功能在多Worker模式下需要确保所有Worker都能访问上传的文件
+3. **日志**: 日志会输出到标准输出，由Gunicorn统一管理
+4. **调试**: 在多Worker模式下，调试较为困难，建议在开发时使用单进程模式
+5. **性能调优**:
+   - Worker数量通常设置为CPU核心数的2-4倍
+   - 最大请求数根据内存使用情况调整，防止内存泄漏
+   - 超时设置根据业务需求调整
 
 ## 许可证
 
