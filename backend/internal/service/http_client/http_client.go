@@ -1,22 +1,15 @@
 package http_client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"mime/multipart"
-	"net/http"
 	"time"
 
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
-)
-
-const (
-	PythonAPIHost = "http://localhost:8000"
+	"github.com/gogf/gf/v2/net/gclient"
 )
 
 type PythonAPIConfig struct {
@@ -26,478 +19,276 @@ type PythonAPIConfig struct {
 	Debug   bool   `yaml:"debug"`
 }
 
-func GetPythonAPIConfig(ctx context.Context) (*PythonAPIConfig, error) {
-	config := &PythonAPIConfig{
+// GetPythonAPIConfig 获取配置，如果失败则返回默认配置
+func GetPythonAPIConfig(ctx context.Context) *PythonAPIConfig {
+	cfg := &PythonAPIConfig{
 		Host:    "localhost",
 		Port:    8000,
 		Timeout: 30,
 		Debug:   false,
 	}
 
-	if err := g.Cfg().MustGet(ctx, "python_api").Struct(config); err != nil {
-		g.Log().Warningf(ctx, "读取Python API配置失败，使用默认配置: %v", err)
+	// 尝试获取配置，如果存在且有效则解析
+	if v, err := g.Cfg().Get(ctx, "python_api"); err == nil && !v.IsEmpty() {
+		if err := v.Struct(cfg); err != nil {
+			g.Log().Warningf(ctx, "Python API 配置解析失败，使用默认值: %v", err)
+		}
 	}
-
-	return config, nil
+	return cfg
 }
 
 type Client struct {
-	httpClient *http.Client
-	baseURL    string
+	client  *gclient.Client
+	baseURL string
 }
 
 func NewClient() *Client {
 	ctx := context.Background()
-	config, err := GetPythonAPIConfig(ctx)
-	if err != nil {
-		g.Log().Warningf(ctx, "获取Python API配置失败，使用默认配置: %v", err)
-		config = &PythonAPIConfig{
-			Host:    "localhost",
-			Port:    8000,
-			Timeout: 30,
-			Debug:   false,
-		}
-	}
+	cfg := GetPythonAPIConfig(ctx)
+
+	c := g.Client().
+		SetTimeout(time.Duration(cfg.Timeout) * time.Second)
 
 	return &Client{
-		httpClient: &http.Client{
-			Timeout: time.Duration(config.Timeout) * time.Second,
-		},
-		baseURL: fmt.Sprintf("http://%s:%d", config.Host, config.Port),
+		client:  c,
+		baseURL: fmt.Sprintf("http://%s:%d", cfg.Host, cfg.Port),
 	}
 }
 
-func (c *Client) doRequest(ctx context.Context, method, endpoint string, headers map[string]string, body io.Reader) ([]byte, error) {
-	url := c.baseURL + endpoint
-
-	req, err := http.NewRequestWithContext(ctx, method, url, body)
+// helper: 执行请求并扫描结果
+func (c *Client) doRequest(resp *gclient.Response, err error, result interface{}) error {
 	if err != nil {
-		return nil, gerror.Wrapf(err, "创建请求失败: %s %s", method, endpoint)
+		return err
+	}
+	defer resp.Close()
+
+	// 1. 读取响应体
+	body := resp.ReadAll()
+	if len(body) == 0 {
+		return gerror.NewCode(gcode.CodeBusinessValidationFailed, "PythonAPI 返回空响应体")
 	}
 
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, gerror.Wrapf(err, "请求失败: %s %s", method, endpoint)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, gerror.Wrapf(err, "读取响应失败: %s %s", method, endpoint)
-	}
-
+	// 2. 检查 HTTP 状态码
 	if resp.StatusCode >= 400 {
-		return nil, gerror.NewCodef(gcode.CodeInternalError, "请求错误: %s %s, 状态码: %d, 响应: %s",
-			method, endpoint, resp.StatusCode, string(respBody))
+		code := gcode.CodeInvalidRequest
+		if resp.StatusCode >= 500 {
+			code = gcode.CodeInternalError
+		}
+		// 尝试从 body 中提取错误信息
+		return gerror.NewCodef(code, "PythonAPI Error %d: %s", resp.StatusCode, string(body))
 	}
 
-	return respBody, nil
-}
+	// 3. 解析 JSON 结果
+	if result != nil {
+		if err := json.Unmarshal(body, result); err != nil {
+			return gerror.Wrapf(err, "解析响应失败: %s", string(body))
+		}
 
-func (c *Client) Get(ctx context.Context, endpoint string, headers map[string]string) ([]byte, error) {
-	return c.doRequest(ctx, "GET", endpoint, headers, nil)
-}
-
-func (c *Client) Post(ctx context.Context, endpoint string, headers map[string]string, data interface{}) ([]byte, error) {
-	var body io.Reader
-
-	if data != nil {
-		switch v := data.(type) {
-		case []byte:
-			body = bytes.NewReader(v)
-		case *bytes.Buffer:
-			body = v
-		default:
-			jsonData, err := json.Marshal(data)
-			if err != nil {
-				return nil, gerror.Wrap(err, "序列化请求数据失败")
+		// 4. 业务逻辑检查 (success: false)
+		// 这里需要处理指针，因为 result 传进来是 &map
+		if ptr, ok := result.(*map[string]interface{}); ok && ptr != nil {
+			m := *ptr
+			if v, ok := m["success"]; ok {
+				if b, ok := v.(bool); ok && !b {
+					return gerror.NewCodef(gcode.CodeBusinessValidationFailed, "PythonAPI 业务失败: %v", m)
+				}
 			}
-			body = bytes.NewReader(jsonData)
 		}
 	}
-
-	if headers == nil {
-		headers = make(map[string]string)
-	}
-	if _, ok := headers["Content-Type"]; !ok {
-		headers["Content-Type"] = "application/json"
-	}
-
-	return c.doRequest(ctx, "POST", endpoint, headers, body)
+	return nil
 }
 
-func (c *Client) PostMultipart(ctx context.Context, endpoint string, fieldName, fileName string, fileData []byte, extraFields map[string]string) ([]byte, error) {
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
+// helper: 通用预测请求处理
+func (c *Client) sendPredictionRequest(ctx context.Context, endpoint string, baseData interface{},
+	modelName, modelData, modelInfoData string) (map[string]interface{}, error) {
 
-	part, err := writer.CreateFormFile(fieldName, fileName)
-	if err != nil {
-		return nil, gerror.Wrap(err, "创建表单文件字段失败")
+	req := g.Map{
+		"data":       baseData,
+		"model_name": modelName,
 	}
-	_, err = part.Write(fileData)
-	if err != nil {
-		return nil, gerror.Wrap(err, "写入文件数据失败")
+	if modelData != "" {
+		req["model_data"] = modelData
 	}
-
-	for key, value := range extraFields {
-		err = writer.WriteField(key, value)
-		if err != nil {
-			return nil, gerror.Wrapf(err, "写入表单字段失败: %s", key)
-		}
+	if modelInfoData != "" {
+		req["model_info_data"] = modelInfoData
 	}
 
-	err = writer.Close()
-	if err != nil {
-		return nil, gerror.Wrap(err, "关闭multipart writer失败")
+	var result map[string]interface{}
+	// 这里显式调用 ContentJson()，确保发送的是 JSON
+	resp, err := c.client.ContentJson().Post(ctx, c.baseURL+endpoint, req)
+	if err := c.doRequest(resp, err, &result); err != nil {
+		return nil, err
 	}
-
-	headers := map[string]string{
-		"Content-Type": writer.FormDataContentType(),
-	}
-
-	return c.doRequest(ctx, "POST", endpoint, headers, &buf)
+	return result, nil
 }
 
+// GetSystemStatus 获取系统状态
 func (c *Client) GetSystemStatus(ctx context.Context) (map[string]interface{}, error) {
-	resp, err := c.Get(ctx, "/system/status", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var result struct {
-		Success bool                   `json:"success"`
-		Status  map[string]interface{} `json:"status"`
-	}
-
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析系统状态响应失败")
-	}
-
-	if !result.Success {
-		return nil, gerror.New("获取系统状态失败")
-	}
-
-	return map[string]interface{}{
-		"success": result.Success,
-		"status":  result.Status,
-	}, nil
-}
-
-func (c *Client) UploadData(ctx context.Context, fileName string, fileData []byte) (map[string]interface{}, error) {
-	resp, err := c.PostMultipart(ctx, "/data/upload", "file", fileName, fileData, nil)
-	if err != nil {
-		return nil, err
-	}
-
 	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析上传数据响应失败")
+	resp, err := c.client.Get(ctx, c.baseURL+"/system/status")
+	if err := c.doRequest(resp, err, &result); err != nil {
+		return nil, err
 	}
-
 	return result, nil
 }
 
+func (c *Client) UploadData(ctx context.Context, filePath string, fileData ...[]byte) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	var err error
+	var resp *gclient.Response
+
+	if len(fileData) > 0 && fileData[0] != nil {
+		resp, err = c.client.Post(ctx, c.baseURL+"/data/upload", g.Map{
+			"file": fileData[0],
+		})
+	} else {
+		resp, err = c.client.Post(ctx, c.baseURL+"/data/upload", g.Map{
+			"file": "@file:" + filePath,
+		})
+	}
+
+	if err := c.doRequest(resp, err, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// GetDataInfo 获取数据信息
 func (c *Client) GetDataInfo(ctx context.Context) (map[string]interface{}, error) {
-	resp, err := c.Get(ctx, "/data/info", nil)
-	if err != nil {
+	var result map[string]interface{}
+	resp, err := c.client.Get(ctx, c.baseURL+"/data/info")
+	if err := c.doRequest(resp, err, &result); err != nil {
 		return nil, err
 	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析数据信息响应失败")
-	}
-
 	return result, nil
 }
 
+// GetDataPreview 获取数据预览
 func (c *Client) GetDataPreview(ctx context.Context, rows int) (map[string]interface{}, error) {
-	endpoint := fmt.Sprintf("/data/preview?rows=%d", rows)
-	resp, err := c.Get(ctx, endpoint, nil)
-	if err != nil {
+	var result map[string]interface{}
+	// gclient Get方法的第二个参数可以自动处理 Query String
+	resp, err := c.client.Get(ctx, c.baseURL+"/data/preview", g.Map{"rows": rows})
+	if err := c.doRequest(resp, err, &result); err != nil {
 		return nil, err
 	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析数据预览响应失败")
-	}
-
 	return result, nil
 }
 
+// ProcessData 处理数据
 func (c *Client) ProcessData(ctx context.Context, handleMissing, targetColumn string) (map[string]interface{}, error) {
-	data := map[string]interface{}{
+	var result map[string]interface{}
+	// 需要 ContentJson()
+	resp, err := c.client.ContentJson().Post(ctx, c.baseURL+"/data/process", g.Map{
 		"handle_missing": handleMissing,
 		"target_column":  targetColumn,
-	}
-
-	resp, err := c.Post(ctx, "/data/process", nil, data)
-	if err != nil {
+	})
+	if err := c.doRequest(resp, err, &result); err != nil {
 		return nil, err
 	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析数据处理响应失败")
-	}
-
 	return result, nil
 }
 
-func (c *Client) TrainModel(ctx context.Context, modelType, targetColumn string, testSize float64, tuneHyperparameters bool) (map[string]interface{}, error) {
-	data := map[string]interface{}{
+// TrainModel 训练模型
+func (c *Client) TrainModel(ctx context.Context, modelType, targetColumn string, testSize float64,
+	tuneHyperparameters bool) (map[string]interface{}, error) {
+
+	var result map[string]interface{}
+	// 需要 ContentJson()
+	resp, err := c.client.ContentJson().Post(ctx, c.baseURL+"/model/train", g.Map{
 		"model_type":           modelType,
 		"target_column":        targetColumn,
 		"test_size":            testSize,
 		"tune_hyperparameters": tuneHyperparameters,
 		"return_model":         true,
-	}
-
-	resp, err := c.Post(ctx, "/model/train", nil, data)
-	if err != nil {
+	})
+	if err := c.doRequest(resp, err, &result); err != nil {
 		return nil, err
 	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析模型训练响应失败")
-	}
-
 	return result, nil
 }
 
+// GetAvailableModels 获取可用模型列表
 func (c *Client) GetAvailableModels(ctx context.Context) (map[string]interface{}, error) {
-	resp, err := c.Get(ctx, "/model/available", nil)
-	if err != nil {
+	var result map[string]interface{}
+	resp, err := c.client.Get(ctx, c.baseURL+"/model/available")
+	if err := c.doRequest(resp, err, &result); err != nil {
 		return nil, err
 	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析可用模型响应失败")
-	}
-
 	return result, nil
 }
 
+// GetTrainedModels 获取已训练模型列表
 func (c *Client) GetTrainedModels(ctx context.Context) (map[string]interface{}, error) {
-	resp, err := c.Get(ctx, "/model/trained", nil)
-	if err != nil {
+	var result map[string]interface{}
+	resp, err := c.client.Get(ctx, c.baseURL+"/model/trained")
+	if err := c.doRequest(resp, err, &result); err != nil {
 		return nil, err
 	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析已训练模型响应失败")
-	}
-
 	return result, nil
 }
 
+// GetModelMetrics 获取模型指标
 func (c *Client) GetModelMetrics(ctx context.Context, modelName string) (map[string]interface{}, error) {
-	endpoint := fmt.Sprintf("/model/metrics/%s", modelName)
-	resp, err := c.Get(ctx, endpoint, nil)
-	if err != nil {
+	var result map[string]interface{}
+	// 使用 Query 参数传递 model_name 更安全（自动URL编码）
+	resp, err := c.client.Get(ctx, c.baseURL+"/model/metrics", g.Map{"model_name": modelName})
+	if err := c.doRequest(resp, err, &result); err != nil {
 		return nil, err
 	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析模型指标响应失败")
-	}
-
 	return result, nil
 }
 
+// CompareModels 比较模型
 func (c *Client) CompareModels(ctx context.Context, testSize float64) (map[string]interface{}, error) {
-	data := map[string]interface{}{
-		"test_size": testSize,
-	}
-
-	resp, err := c.Post(ctx, "/model/compare", nil, data)
-	if err != nil {
+	var result map[string]interface{}
+	resp, err := c.client.ContentJson().Post(ctx, c.baseURL+"/model/compare", g.Map{"test_size": testSize})
+	if err := c.doRequest(resp, err, &result); err != nil {
 		return nil, err
 	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析模型比较响应失败")
-	}
-
 	return result, nil
 }
 
+// Predict 预测
 func (c *Client) Predict(ctx context.Context, data map[string]interface{}, modelName string) (map[string]interface{}, error) {
-	requestData := map[string]interface{}{
-		"data":       data,
-		"model_name": modelName,
-	}
-
-	resp, err := c.Post(ctx, "/predict", nil, requestData)
-	if err != nil {
-		return nil, err
-	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析预测响应失败")
-	}
-
-	return result, nil
+	return c.sendPredictionRequest(ctx, "/predict", data, modelName, "", "")
 }
 
-func (c *Client) PredictWithModel(ctx context.Context, data map[string]interface{}, modelName string, modelData string) (map[string]interface{}, error) {
-	requestData := map[string]interface{}{
-		"data":       data,
-		"model_name": modelName,
-	}
-
-	if modelData != "" {
-		requestData["model_data"] = modelData
-	}
-
-	resp, err := c.Post(ctx, "/predict", nil, requestData)
-	if err != nil {
-		return nil, err
-	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析预测响应失败")
-	}
-
-	return result, nil
+// PredictWithModel 使用指定模型数据预测
+func (c *Client) PredictWithModel(ctx context.Context, data map[string]interface{}, modelName, modelData string) (map[string]interface{}, error) {
+	return c.sendPredictionRequest(ctx, "/predict", data, modelName, modelData, "")
 }
 
-func (c *Client) PredictWithModelAndInfo(ctx context.Context, data map[string]interface{}, modelName string, modelData string, modelInfoData string) (map[string]interface{}, error) {
-	requestData := map[string]interface{}{
-		"data":       data,
-		"model_name": modelName,
-	}
+// PredictWithModelAndInfo 使用指定模型数据和信息预测
+func (c *Client) PredictWithModelAndInfo(ctx context.Context, data map[string]interface{}, modelName,
+	modelData, modelInfoData string) (map[string]interface{}, error) {
 
-	if modelData != "" {
-		requestData["model_data"] = modelData
-	}
-
-	if modelInfoData != "" {
-		requestData["model_info_data"] = modelInfoData
-	}
-
-	resp, err := c.Post(ctx, "/predict", nil, requestData)
-	if err != nil {
-		return nil, err
-	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析预测响应失败")
-	}
-
-	return result, nil
+	return c.sendPredictionRequest(ctx, "/predict", data, modelName, modelData, modelInfoData)
 }
 
+// BatchPredict 批量预测
 func (c *Client) BatchPredict(ctx context.Context, data []map[string]interface{}, modelName string) (map[string]interface{}, error) {
-	requestData := map[string]interface{}{
-		"data":       data,
-		"model_name": modelName,
-	}
-
-	resp, err := c.Post(ctx, "/predict/batch", nil, requestData)
-	if err != nil {
-		return nil, err
-	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析批量预测响应失败")
-	}
-
-	return result, nil
+	return c.sendPredictionRequest(ctx, "/predict/batch", data, modelName, "", "")
 }
 
-func (c *Client) BatchPredictWithModel(ctx context.Context, data []map[string]interface{}, modelName string, modelData string) (map[string]interface{}, error) {
-	requestData := map[string]interface{}{
-		"data":       data,
-		"model_name": modelName,
-	}
-
-	if modelData != "" {
-		requestData["model_data"] = modelData
-	}
-
-	resp, err := c.Post(ctx, "/predict/batch", nil, requestData)
-	if err != nil {
-		return nil, err
-	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析批量预测响应失败")
-	}
-
-	return result, nil
+// BatchPredictWithModel 批量预测 (带模型数据)
+func (c *Client) BatchPredictWithModel(ctx context.Context, data []map[string]interface{}, modelName, modelData string) (map[string]interface{}, error) {
+	return c.sendPredictionRequest(ctx, "/predict/batch", data, modelName, modelData, "")
 }
 
-func (c *Client) BatchPredictWithModelAndInfo(ctx context.Context, data []map[string]interface{}, modelName string, modelData string, modelInfoData string) (map[string]interface{}, error) {
-	requestData := map[string]interface{}{
-		"data":       data,
-		"model_name": modelName,
-	}
+// BatchPredictWithModelAndInfo 批量预测 (带模型数据和信息)
+func (c *Client) BatchPredictWithModelAndInfo(ctx context.Context, data []map[string]interface{}, modelName,
+	modelData, modelInfoData string) (map[string]interface{}, error) {
 
-	if modelData != "" {
-		requestData["model_data"] = modelData
-	}
-
-	if modelInfoData != "" {
-		requestData["model_info_data"] = modelInfoData
-	}
-
-	resp, err := c.Post(ctx, "/predict/batch", nil, requestData)
-	if err != nil {
-		return nil, err
-	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析批量预测响应失败")
-	}
-
-	return result, nil
+	return c.sendPredictionRequest(ctx, "/predict/batch", data, modelName, modelData, modelInfoData)
 }
 
+// GetModelInfo 获取模型详细信息
 func (c *Client) GetModelInfo(ctx context.Context, modelName string) (map[string]interface{}, error) {
-	endpoint := fmt.Sprintf("/model/info?model_name=%s", modelName)
-	resp, err := c.Get(ctx, endpoint, nil)
-	if err != nil {
+	var result map[string]interface{}
+	// 自动处理 URL 编码
+	resp, err := c.client.Get(ctx, c.baseURL+"/model/info", g.Map{"model_name": modelName})
+	if err := c.doRequest(resp, err, &result); err != nil {
 		return nil, err
 	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(resp, &result)
-	if err != nil {
-		return nil, gerror.Wrap(err, "解析模型信息响应失败")
-	}
-
 	return result, nil
 }

@@ -42,11 +42,9 @@ func (s *Service) testMLModelConnection(ctx context.Context) error {
 
 	g.Log().Info(ctx, "ml_model系统状态接口测试成功")
 
-	s.testAPIEndpoints(ctx, client)
-
 	return nil
 }
 
-func (s *Service) testAPIEndpoints(ctx context.Context, client *http_client.Client) {
+func (s *Service) testAPIEndpoints(ctx context.Context) {
 	g.Log().Info(ctx, "ml_model服务连接正常，无需测试其他接口")
 }

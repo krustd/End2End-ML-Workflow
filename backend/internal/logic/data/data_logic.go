@@ -39,6 +39,11 @@ func (s *sDataLogic) UploadData(ctx context.Context, file *ghttp.UploadFile) (re
 		return nil, gerror.NewCode(gcode.CodeInvalidParameter, "只支持CSV文件")
 	}
 
+	const maxFileSize = 50 * 1024 * 1024
+	if file.Size > maxFileSize {
+		return nil, gerror.NewCodef(gcode.CodeInvalidParameter, "文件大小超过限制，最大允许%dMB", maxFileSize/(1024*1024))
+	}
+
 	fileObj, err := file.Open()
 	if err != nil {
 		return nil, gerror.Wrap(err, "打开上传文件失败")
